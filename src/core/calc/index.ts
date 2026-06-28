@@ -3,4 +3,5 @@ export * from "./encuesta";
 export * from "./costeo";
 export * from "./planilla";
 export * from "./inversiones";
+export * from "./depreciacion";
 export * from "./puntoEquilibrio";

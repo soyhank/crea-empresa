@@ -22,6 +22,8 @@ const COMPLETION_OVERRIDES: Partial<Record<ModuloId, (data: ProjectData) => bool
     const inv = data.inversiones as InversionesInput | undefined;
     return !!inv && inv.numSocios >= 1 && totalInversiones(inv) > 0;
   },
+  // Depreciación se deriva de Inversiones con vidas útiles por defecto.
+  depreciacion: (data) => isModuloCompleto("inversiones", data),
 };
 
 export interface ModuloEstado {
