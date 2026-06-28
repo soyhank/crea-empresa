@@ -1,15 +1,9 @@
 import { z } from "zod";
-import { montoSchema, positivoSchema } from "./common";
 
 /**
  * MÓDULO 7 · Punto de equilibrio
- * PE (unid) = Costos Fijos / (Precio − Costo Variable Unitario)
- * La mayoría de entradas se derivan de Costeo/Ventas; aquí se permite override.
+ * No tiene inputs propios: CVU, PV y CFT se heredan de Costeo y la demanda de
+ * Mercado. PE (unid) = CFT / (PV − CVU); PE (S/) = CFT / (1 − CVU/PV).
  */
-
-export const puntoEquilibrioInputSchema = z.object({
-  precioVenta: positivoSchema,
-  costoVariableUnitario: montoSchema,
-  costosFijosMensuales: montoSchema,
-});
+export const puntoEquilibrioInputSchema = z.object({});
 export type PuntoEquilibrioInput = z.infer<typeof puntoEquilibrioInputSchema>;

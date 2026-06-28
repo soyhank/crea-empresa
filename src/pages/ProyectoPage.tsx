@@ -9,7 +9,7 @@ import {
   type MercadoOwn, type ModuloId, type PlanillaInput,
 } from "@/core/schemas";
 import { calcularCPC, calcularMercado, derivarEncuesta } from "@/core/calc";
-import { construirDepreciacion, construirMercado, contextoCapitalTrabajo } from "@/lib/derive";
+import { construirDepreciacion, construirMercado, contextoCapitalTrabajo, contextoPuntoEquilibrio } from "@/lib/derive";
 import { calcularEstados, isModuloCompleto, modulosAfectados, modulosCompletos, tieneDatos } from "@/lib/wizard";
 import { TopBar } from "@/components/TopBar";
 import { SidebarWizard } from "@/features/proyecto/SidebarWizard";
@@ -31,6 +31,8 @@ import { inversionesVacia, inversionesEjemploKkori } from "@/features/inversione
 import { DepreciacionForm } from "@/features/depreciacion/DepreciacionForm";
 import { DepreciacionResultados } from "@/features/depreciacion/DepreciacionResultados";
 import { depreciacionVacia, depreciacionEjemploKkori } from "@/features/depreciacion/defaults";
+import { PuntoEquilibrioPanel } from "@/features/puntoEquilibrio/PuntoEquilibrioPanel";
+import { PuntoEquilibrioGrafico } from "@/features/puntoEquilibrio/PuntoEquilibrioGrafico";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -170,7 +172,9 @@ export function ProyectoPage() {
   const capitalTrabajo = contextoCapitalTrabajo(projData);
   const depreciacionValue = (projData.depreciacion as DepreciacionInput | undefined) ?? depreciacionVacia();
   const depHerencia = construirDepreciacion(projData);
-  const tieneForm = ["encuesta", "mercado", "costeo", "planilla", "inversiones", "depreciacion"].includes(activo);
+  const ctxPE = contextoPuntoEquilibrio(projData);
+  const tieneForm = ["encuesta", "mercado", "costeo", "planilla", "inversiones", "depreciacion", "punto_equilibrio"].includes(activo);
+  const tieneEjemplo = ["encuesta", "mercado", "costeo", "planilla", "inversiones", "depreciacion"].includes(activo);
 
   const formNode =
     activo === "encuesta" ? (
@@ -193,6 +197,8 @@ export function ProyectoPage() {
       <InversionesForm value={inversionesValue} onChange={(n) => editarModulo("inversiones", n)} capital={capitalTrabajo} onIrACosteo={() => selectModulo("costeo")} />
     ) : activo === "depreciacion" ? (
       <DepreciacionForm value={depreciacionValue} onChange={(n) => editarModulo("depreciacion", n)} activos={depHerencia.activos} gastos={depHerencia.gastos} listo={depHerencia.listo} onIrAInversiones={() => selectModulo("inversiones")} />
+    ) : activo === "punto_equilibrio" ? (
+      <PuntoEquilibrioPanel ctx={ctxPE} onIrACosteo={() => selectModulo("costeo")} />
     ) : null;
 
   const prevMod = MODULOS.find((m) => m.orden === meta.orden - 1);
@@ -219,7 +225,8 @@ export function ProyectoPage() {
     activo === "costeo" ? <CosteoResultados value={costeoValue} demandaMensual={demandaMensual} /> :
     activo === "planilla" ? <PlanillaResultados value={planillaValue} /> :
     activo === "inversiones" ? <InversionesResultados value={inversionesValue} capital={capitalTrabajo} /> :
-    activo === "depreciacion" ? <DepreciacionResultados activos={depHerencia.activos} gastos={depHerencia.gastos} horizonte={depreciacionValue.horizonteAnios} /> : (
+    activo === "depreciacion" ? <DepreciacionResultados activos={depHerencia.activos} gastos={depHerencia.gastos} horizonte={depreciacionValue.horizonteAnios} /> :
+    activo === "punto_equilibrio" ? <PuntoEquilibrioGrafico ctx={ctxPE} /> : (
       <p className="text-sm text-muted-foreground">Los resultados en vivo de este módulo aparecerán aquí.</p>
     );
 
@@ -278,9 +285,11 @@ export function ProyectoPage() {
 
             {tieneForm ? (
               <>
-                <div className="mb-4 flex justify-end">
-                  <Button variant="outline" size="sm" onClick={() => cargarEjemplo(activo)}><Sparkles /> Cargar ejemplo K-KORI</Button>
-                </div>
+                {tieneEjemplo && (
+                  <div className="mb-4 flex justify-end">
+                    <Button variant="outline" size="sm" onClick={() => cargarEjemplo(activo)}><Sparkles /> Cargar ejemplo K-KORI</Button>
+                  </div>
+                )}
                 {formNode}
               </>
             ) : (

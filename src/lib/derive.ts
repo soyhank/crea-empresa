@@ -44,6 +44,19 @@ export function contextoCapitalTrabajo(data: ProjectData): CapitalTrabajo & { li
   };
 }
 
+/** Datos heredados que necesita el Punto de equilibrio (de Costeo y Mercado). */
+export function contextoPuntoEquilibrio(data: ProjectData): {
+  cvu: number; pv: number; cft: number; demandaMensual: number; listo: boolean;
+} {
+  const costeo = data.costeo as CosteoInput | undefined;
+  const mercadoOk = mercadoOwnSchema.safeParse(data.mercado).success;
+  const demandaMensual = calcularMercado(construirMercado(data)).demandaPorPeriodo;
+  if (!costeo || !mercadoOk) return { cvu: 0, pv: 0, cft: 0, demandaMensual, listo: false };
+  const c = calcularCosteo(costeo, { demandaMensual });
+  // El PE usa la materia prima como costo variable (criterio del modelo K-KORI).
+  return { cvu: c.mpUnitario, pv: c.valorVenta, cft: c.costosFijosMensuales, demandaMensual, listo: true };
+}
+
 const GRUPO_LABEL: Record<keyof InversionesInput["activoFijo"], string> = {
   maquinariaEquipos: "Maquinaria y equipos",
   equiposUtensilios: "Equipos y utensilios",

@@ -24,6 +24,8 @@ const COMPLETION_OVERRIDES: Partial<Record<ModuloId, (data: ProjectData) => bool
   },
   // Depreciación se deriva de Inversiones con vidas útiles por defecto.
   depreciacion: (data) => isModuloCompleto("inversiones", data),
+  // Punto de equilibrio se deriva por completo de Costeo.
+  punto_equilibrio: (data) => isModuloCompleto("costeo", data),
 };
 
 export interface ModuloEstado {
