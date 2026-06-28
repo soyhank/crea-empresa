@@ -6,3 +6,5 @@ export * from "./inversiones";
 export * from "./depreciacion";
 export * from "./puntoEquilibrio";
 export * from "./proyeccionVentas";
+export * from "./finanzas";
+export * from "./flujoCaja";

@@ -6,11 +6,11 @@ import type { Project, ProjectData } from "@/lib/types";
 import {
   MODULOS, MODULO_POR_ID, moduloIdSchema,
   type CosteoInput, type DepreciacionInput, type EncuestaInput, type InversionesInput,
-  type MercadoOwn, type ModuloId, type PlanillaInput, type ProyeccionVentasInput,
+  type FlujoCajaInput, type MercadoOwn, type ModuloId, type PlanillaInput, type ProyeccionVentasInput,
 } from "@/core/schemas";
 import { calcularCPC, calcularMercado, derivarEncuesta } from "@/core/calc";
 import {
-  construirDepreciacion, construirMercado, contextoCapitalTrabajo, contextoPuntoEquilibrio, contextoVentas,
+  construirDepreciacion, construirMercado, contextoCapitalTrabajo, contextoFlujo, contextoPuntoEquilibrio, contextoVentas,
 } from "@/lib/derive";
 import { calcularEstados, isModuloCompleto, modulosAfectados, modulosCompletos, tieneDatos } from "@/lib/wizard";
 import { TopBar } from "@/components/TopBar";
@@ -38,6 +38,9 @@ import { PuntoEquilibrioGrafico } from "@/features/puntoEquilibrio/PuntoEquilibr
 import { ProyeccionVentasForm } from "@/features/ventas/ProyeccionVentasForm";
 import { ProyeccionVentasResultados } from "@/features/ventas/ProyeccionVentasResultados";
 import { ventasVacia, ventasEjemploKkori } from "@/features/ventas/defaults";
+import { FlujoCajaForm } from "@/features/flujoCaja/FlujoCajaForm";
+import { FlujoCajaResultados } from "@/features/flujoCaja/FlujoCajaResultados";
+import { flujoVacio, flujoEjemploKkori } from "@/features/flujoCaja/defaults";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -140,6 +143,7 @@ export function ProyectoPage() {
     else if (mod === "inversiones") editarModulo("inversiones", inversionesEjemploKkori());
     else if (mod === "depreciacion") editarModulo("depreciacion", depreciacionEjemploKkori());
     else if (mod === "ventas") editarModulo("ventas", ventasEjemploKkori());
+    else if (mod === "flujo_caja") editarModulo("flujo_caja", flujoEjemploKkori());
     toast.success("Ejemplo K-KORI cargado");
   };
 
@@ -181,8 +185,10 @@ export function ProyectoPage() {
   const ctxPE = contextoPuntoEquilibrio(projData);
   const ventasValue = (projData.ventas as ProyeccionVentasInput | undefined) ?? ventasVacia();
   const ctxVentas = contextoVentas(projData);
-  const tieneForm = ["encuesta", "mercado", "costeo", "planilla", "inversiones", "depreciacion", "punto_equilibrio", "ventas"].includes(activo);
-  const tieneEjemplo = ["encuesta", "mercado", "costeo", "planilla", "inversiones", "depreciacion", "ventas"].includes(activo);
+  const flujoValue = (projData.flujo_caja as FlujoCajaInput | undefined) ?? flujoVacio();
+  const ctxFlujo = contextoFlujo(projData);
+  const tieneForm = ["encuesta", "mercado", "costeo", "planilla", "inversiones", "depreciacion", "punto_equilibrio", "ventas", "flujo_caja"].includes(activo);
+  const tieneEjemplo = ["encuesta", "mercado", "costeo", "planilla", "inversiones", "depreciacion", "ventas", "flujo_caja"].includes(activo);
 
   const formNode =
     activo === "encuesta" ? (
@@ -209,6 +215,8 @@ export function ProyectoPage() {
       <PuntoEquilibrioPanel ctx={ctxPE} onIrACosteo={() => selectModulo("costeo")} />
     ) : activo === "ventas" ? (
       <ProyeccionVentasForm value={ventasValue} onChange={(n) => editarModulo("ventas", n)} ctx={ctxVentas} onIrACosteo={() => selectModulo("costeo")} />
+    ) : activo === "flujo_caja" ? (
+      <FlujoCajaForm value={flujoValue} onChange={(n) => editarModulo("flujo_caja", n)} ctx={ctxFlujo} onIr={() => selectModulo("inversiones")} />
     ) : null;
 
   const prevMod = MODULOS.find((m) => m.orden === meta.orden - 1);
@@ -237,7 +245,8 @@ export function ProyectoPage() {
     activo === "inversiones" ? <InversionesResultados value={inversionesValue} capital={capitalTrabajo} /> :
     activo === "depreciacion" ? <DepreciacionResultados activos={depHerencia.activos} gastos={depHerencia.gastos} horizonte={depreciacionValue.horizonteAnios} /> :
     activo === "punto_equilibrio" ? <PuntoEquilibrioGrafico ctx={ctxPE} /> :
-    activo === "ventas" ? <ProyeccionVentasResultados value={ventasValue} ctx={ctxVentas} /> : (
+    activo === "ventas" ? <ProyeccionVentasResultados value={ventasValue} ctx={ctxVentas} /> :
+    activo === "flujo_caja" ? <FlujoCajaResultados value={flujoValue} ctx={ctxFlujo} /> : (
       <p className="text-sm text-muted-foreground">Los resultados en vivo de este módulo aparecerán aquí.</p>
     );
 

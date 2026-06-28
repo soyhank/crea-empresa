@@ -3,11 +3,12 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { data } from "@/lib/data";
 import type { Project, ProjectData } from "@/lib/types";
-import { MODULO_POR_ID, type CosteoInput, type ModuloId } from "@/core/schemas";
-import { calcularCosteo, calcularMercado, calcularPuntoEquilibrio } from "@/core/calc";
-import { construirMercado } from "@/lib/derive";
+import { MODULO_POR_ID, type CosteoInput, type FlujoCajaInput, type ModuloId } from "@/core/schemas";
+import { calcularCosteo, calcularFlujoCaja, calcularMercado, calcularPuntoEquilibrio } from "@/core/calc";
+import { construirMercado, contextoFlujo } from "@/lib/derive";
 import { isModuloCompleto } from "@/lib/wizard";
-import { formatInteger, formatPEN } from "@/core/money";
+import { flujoVacio } from "@/features/flujoCaja/defaults";
+import { formatInteger, formatPEN, formatPercent } from "@/core/money";
 import { Brand } from "@/components/Brand";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -82,6 +83,11 @@ export function TableroPage() {
   const peR = costeoR
     ? calcularPuntoEquilibrio({ precioVenta: costeoR.valorVenta, costoVariableUnitario: costeoR.mpUnitario, costosFijos: costeoR.costosFijosMensuales })
     : null;
+
+  const ctxFlujo = contextoFlujo(projData);
+  const flujoValue = (projData.flujo_caja as FlujoCajaInput | undefined) ?? flujoVacio();
+  const flujoR = flujoOk && ctxFlujo.listo ? calcularFlujoCaja(flujoValue, ctxFlujo.inversionInicial, ctxFlujo.anios) : null;
+  const mod = flujoR?.escenarios.find((e) => e.clave === "moderado") ?? null;
 
   const baseListo = mercadoOk && costeoOk;
 
@@ -181,11 +187,11 @@ export function TableroPage() {
             <section>
               <h2 className="mb-3 text-lg font-semibold text-slate-900">Indicadores clave</h2>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-                <Scorecard label="VAN (VANE)" valor="—" contexto="Completa Flujo de caja" pendiente />
-                <Scorecard label="TIR (TIRE)" valor="—" contexto="Completa Flujo de caja" pendiente />
-                <Scorecard label="Payback" valor="—" contexto="Completa Flujo de caja" pendiente />
+                <Scorecard label="VAN (VANE)" valor={mod ? formatPEN(mod.vane) : "—"} contexto={mod ? "escenario moderado" : "Completa Flujo de caja"} tono={mod ? (mod.vane > 0 ? "ok" : "bad") : "neutral"} pendiente={!mod} />
+                <Scorecard label="TIR (TIRE)" valor={mod ? formatPercent(mod.tire) : "—"} contexto={mod ? `COK ${formatPercent(mod.cok)}` : "Completa Flujo de caja"} tono={mod ? (mod.tire > mod.cok ? "ok" : "bad") : "neutral"} pendiente={!mod} />
+                <Scorecard label="Payback" valor={mod ? `${mod.payback.toFixed(2)} años` : "—"} contexto={mod ? "recupero de inversión" : "Completa Flujo de caja"} pendiente={!mod} />
                 <Scorecard label="Punto de equilibrio" valor={peR ? `${formatInteger(peR.unidades)}` : "—"} contexto={peR ? <>unid · {formatPEN(peR.soles)}</> : undefined} />
-                <Scorecard label="Inversión total" valor="—" contexto="Completa Inversiones" pendiente />
+                <Scorecard label="Inversión total" valor={ctxFlujo.inversionInicial > 0 ? formatPEN(ctxFlujo.inversionInicial) : "—"} contexto={ctxFlujo.inversionInicial > 0 ? "aporte de socios" : "Completa Inversiones"} pendiente={ctxFlujo.inversionInicial <= 0} />
                 <Scorecard label="Precio de venta" valor={costeoR ? formatPEN(costeoR.precioVenta) : "—"} contexto="con IGV" tono="neutral" />
               </div>
             </section>
@@ -235,7 +241,32 @@ export function TableroPage() {
             {/* 3. Comparativa de escenarios */}
             <section>
               <h2 className="mb-3 text-lg font-semibold text-slate-900">Comparativa de escenarios</h2>
-              <PendienteCard titulo="Optimista / Moderado / Pesimista" modulo="flujo_caja" />
+              {flujoR ? (
+                <Card>
+                  <CardContent className="overflow-x-auto p-0">
+                    <table className="w-full min-w-[480px] text-sm">
+                      <thead><tr className="border-b border-border text-right text-xs text-muted-foreground"><th className="px-4 py-3 text-left font-medium">Indicador</th>{flujoR.escenarios.map((e) => <th key={e.clave} className="px-4 py-3 font-medium capitalize">{e.clave}</th>)}</tr></thead>
+                      <tbody>
+                        {([
+                          ["COK", (e: typeof flujoR.escenarios[number]) => formatPercent(e.cok)],
+                          ["VANE", (e: typeof flujoR.escenarios[number]) => formatPEN(e.vane)],
+                          ["TIRE", (e: typeof flujoR.escenarios[number]) => formatPercent(e.tire)],
+                          ["Payback", (e: typeof flujoR.escenarios[number]) => `${e.payback.toFixed(2)} años`],
+                        ] as const).map(([label, fn]) => (
+                          <tr key={label} className="border-b border-border last:border-0">
+                            <td className="px-4 py-2.5 text-left font-medium text-slate-700">{label}</td>
+                            {flujoR.escenarios.map((e) => (
+                              <td key={e.clave} className={"px-4 py-2.5 text-right tabular " + (e.clave === "moderado" ? "bg-accent/40 font-semibold text-slate-900" : "text-slate-700")}>{fn(e)}</td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </CardContent>
+                </Card>
+              ) : (
+                <PendienteCard titulo="Optimista / Moderado / Pesimista" modulo="flujo_caja" />
+              )}
             </section>
 
             {/* 4. Estados financieros */}

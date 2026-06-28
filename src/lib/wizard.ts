@@ -28,6 +28,8 @@ const COMPLETION_OVERRIDES: Partial<Record<ModuloId, (data: ProjectData) => bool
   punto_equilibrio: (data) => isModuloCompleto("costeo", data),
   // Ventas: se desbloquea/deriva con Costeo (usa crecimiento por defecto).
   ventas: (data) => isModuloCompleto("costeo", data),
+  // Flujo de caja: requiere ventas e inversiones; usa escenarios por defecto.
+  flujo_caja: (data) => isModuloCompleto("ventas", data) && isModuloCompleto("inversiones", data),
 };
 
 export interface ModuloEstado {

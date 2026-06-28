@@ -1,7 +1,7 @@
-import { calcularCosteo, calcularMercado, derivarEncuesta } from "@/core/calc";
+import { calcularCosteo, calcularInversiones, calcularMercado, calcularProyeccionVentas, derivarEncuesta } from "@/core/calc";
 import type {
-  ActivoDepreciable, CapitalTrabajo, CosteoInput, DepreciacionInput, EncuestaInput,
-  GastoPreOperativo, InversionesInput, ItemInversion, MercadoInput, MercadoOwn,
+  ActivoDepreciable, CapitalTrabajo, CosteoInput, DepreciacionInput, EncuestaInput, FlujoAnioInput,
+  GastoPreOperativo, InversionesInput, ItemInversion, MercadoInput, MercadoOwn, ProyeccionVentasInput,
 } from "@/core/schemas";
 import { mercadoOwnSchema, VIDA_UTIL_SUGERIDA } from "@/core/schemas";
 import type { ProjectData } from "./types";
@@ -67,6 +67,27 @@ export function contextoPuntoEquilibrio(data: ProjectData): {
   const c = calcularCosteo(costeo, { demandaMensual });
   // El PE usa la materia prima como costo variable (criterio del modelo K-KORI).
   return { cvu: c.mpUnitario, pv: c.valorVenta, cft: c.costosFijosMensuales, demandaMensual, listo: true };
+}
+
+/** Datos heredados para el Flujo de caja: inversión inicial y totales anuales. */
+export function contextoFlujo(data: ProjectData): {
+  inversionInicial: number; anios: FlujoAnioInput[]; listo: boolean;
+} {
+  const inv = data.inversiones as InversionesInput | undefined;
+  const cap = contextoCapitalTrabajo(data);
+  const cv = contextoVentas(data);
+  if (!inv || !cap.listo || !cv.listo) return { inversionInicial: 0, anios: [], listo: false };
+
+  const inversionInicial = calcularInversiones(inv, cap).inversionTotal;
+  const ventas = (data.ventas as ProyeccionVentasInput | undefined) ?? { pctCrecimientoAnual: 0.05, igv: 0.18 };
+  const proy = calcularProyeccionVentas(ventas, cv);
+  const anios: FlujoAnioInput[] = proy.anios.map((a) => ({
+    ingresos: a.totalIngresos,
+    costosFijos: a.totalCF,
+    costosVariables: a.totalCV,
+    igvAPagar: a.totalIgvAPagar,
+  }));
+  return { inversionInicial, anios, listo: true };
 }
 
 const GRUPO_LABEL: Record<keyof InversionesInput["activoFijo"], string> = {
