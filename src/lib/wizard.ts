@@ -75,3 +75,17 @@ export function modulosAguasAbajo(id: ModuloId): ModuloId[] {
   const orden = MODULO_POR_ID[id].orden;
   return MODULOS.filter((m) => m.orden > orden).map((m) => m.id);
 }
+
+/**
+ * Aristas de alimentación que NO siguen el orden (un módulo posterior alimenta
+ * uno anterior). P. ej. Planilla y Depreciación alimentan los costos fijos de Costeo.
+ */
+const ALIMENTA_EXTRA: Partial<Record<ModuloId, ModuloId[]>> = {
+  planilla: ["costeo"],
+  depreciacion: ["costeo"],
+};
+
+/** Todos los módulos afectados por un cambio en `id` (downstream + extras). */
+export function modulosAfectados(id: ModuloId): ModuloId[] {
+  return Array.from(new Set([...modulosAguasAbajo(id), ...(ALIMENTA_EXTRA[id] ?? [])]));
+}

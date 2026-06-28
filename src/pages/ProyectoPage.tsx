@@ -4,11 +4,12 @@ import { toast } from "sonner";
 import { data } from "@/lib/data";
 import type { Project, ProjectData } from "@/lib/types";
 import {
-  MODULOS, MODULO_POR_ID, moduloIdSchema, type CosteoInput, type EncuestaInput, type MercadoOwn, type ModuloId,
+  MODULOS, MODULO_POR_ID, moduloIdSchema,
+  type CosteoInput, type EncuestaInput, type MercadoOwn, type ModuloId, type PlanillaInput,
 } from "@/core/schemas";
 import { calcularCPC, calcularMercado, derivarEncuesta } from "@/core/calc";
 import { construirMercado } from "@/lib/derive";
-import { calcularEstados, isModuloCompleto, modulosAguasAbajo, modulosCompletos, tieneDatos } from "@/lib/wizard";
+import { calcularEstados, isModuloCompleto, modulosAfectados, modulosCompletos, tieneDatos } from "@/lib/wizard";
 import { TopBar } from "@/components/TopBar";
 import { SidebarWizard } from "@/features/proyecto/SidebarWizard";
 import { EncuestaForm } from "@/features/encuesta/EncuestaForm";
@@ -20,6 +21,9 @@ import { mercadoVacio, mercadoEjemploKkori } from "@/features/mercado/defaults";
 import { CosteoForm } from "@/features/costeo/CosteoForm";
 import { CosteoResultados } from "@/features/costeo/CosteoResultados";
 import { costeoVacio, costeoEjemploKkori } from "@/features/costeo/defaults";
+import { PlanillaForm } from "@/features/planilla/PlanillaForm";
+import { PlanillaResultados } from "@/features/planilla/PlanillaResultados";
+import { planillaVacia, planillaEjemploKkori } from "@/features/planilla/defaults";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -96,7 +100,7 @@ export function ProyectoPage() {
   // Editar un módulo: guarda + marca aguas abajo (con datos) como "necesita revisión".
   const editarModulo = (mod: ModuloId, inputs: unknown) => {
     setProjData((prev) => {
-      const downstream = modulosAguasAbajo(mod).filter((mid) => tieneDatos(mid, prev));
+      const downstream = modulosAfectados(mod).filter((mid) => tieneDatos(mid, prev));
       const review = Array.from(new Set([...(prev._needsReview ?? []), ...downstream]));
       const next: ProjectData = { ...prev, [mod]: inputs, lastModulo: mod, _needsReview: review };
       scheduleSave(next);
@@ -118,6 +122,7 @@ export function ProyectoPage() {
     if (mod === "encuesta") editarModulo("encuesta", encuestaEjemploKkori());
     else if (mod === "mercado") editarModulo("mercado", mercadoEjemploKkori());
     else if (mod === "costeo") editarModulo("costeo", costeoEjemploKkori());
+    else if (mod === "planilla") editarModulo("planilla", planillaEjemploKkori());
     toast.success("Ejemplo K-KORI cargado");
   };
 
@@ -151,7 +156,8 @@ export function ProyectoPage() {
   const encuestaValue = (projData.encuesta as EncuestaInput | undefined) ?? encuestaVacia();
   const mercadoValue = (projData.mercado as MercadoOwn | undefined) ?? mercadoVacio();
   const costeoValue = (projData.costeo as CosteoInput | undefined) ?? costeoVacio();
-  const tieneForm = activo === "encuesta" || activo === "mercado" || activo === "costeo";
+  const planillaValue = (projData.planilla as PlanillaInput | undefined) ?? planillaVacia();
+  const tieneForm = ["encuesta", "mercado", "costeo", "planilla"].includes(activo);
 
   const formNode =
     activo === "encuesta" ? (
@@ -168,13 +174,15 @@ export function ProyectoPage() {
       />
     ) : activo === "costeo" ? (
       <CosteoForm value={costeoValue} onChange={(n) => editarModulo("costeo", n)} />
+    ) : activo === "planilla" ? (
+      <PlanillaForm value={planillaValue} onChange={(n) => editarModulo("planilla", n)} />
     ) : null;
 
   const prevMod = MODULOS.find((m) => m.orden === meta.orden - 1);
   const nextMod = MODULOS.find((m) => m.orden === meta.orden + 1);
   const nextBloqueado = nextMod ? estados[nextMod.id].estado === "bloqueado" : true;
 
-  const revisarAbajo = (projData._needsReview ?? []).filter((mid) => MODULO_POR_ID[mid].orden > meta.orden);
+  const revisarAbajo = (projData._needsReview ?? []).filter((mid) => mid !== activo);
 
   const wizard = (
     <SidebarWizard
@@ -191,7 +199,8 @@ export function ProyectoPage() {
   const resultados =
     activo === "encuesta" ? <EncuestaResultados value={encuestaValue} /> :
     activo === "mercado" ? <MercadoResultados value={mercadoEfectivo} /> :
-    activo === "costeo" ? <CosteoResultados value={costeoValue} demandaMensual={demandaMensual} /> : (
+    activo === "costeo" ? <CosteoResultados value={costeoValue} demandaMensual={demandaMensual} /> :
+    activo === "planilla" ? <PlanillaResultados value={planillaValue} /> : (
       <p className="text-sm text-muted-foreground">Los resultados en vivo de este módulo aparecerán aquí.</p>
     );
 

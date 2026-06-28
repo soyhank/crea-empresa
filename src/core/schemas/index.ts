@@ -67,8 +67,8 @@ export const MODULOS: readonly ModuloMeta[] = [
     id: "planilla",
     orden: 4,
     nombre: "Planilla",
-    descripcion: "Puestos, sueldos y cargas sociales.",
-    dependencias: [],
+    descripcion: "Cuadro de remuneraciones; su gasto mensual alimenta los costos fijos.",
+    dependencias: ["mercado"],
     schema: planillaInputSchema,
   },
   {
