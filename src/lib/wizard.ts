@@ -30,6 +30,8 @@ const COMPLETION_OVERRIDES: Partial<Record<ModuloId, (data: ProjectData) => bool
   ventas: (data) => isModuloCompleto("costeo", data),
   // Flujo de caja: requiere ventas e inversiones; usa escenarios por defecto.
   flujo_caja: (data) => isModuloCompleto("ventas", data) && isModuloCompleto("inversiones", data),
+  // Estados financieros: se derivan por completo del flujo de caja.
+  estados_financieros: (data) => isModuloCompleto("flujo_caja", data),
 };
 
 export interface ModuloEstado {

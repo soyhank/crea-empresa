@@ -1,9 +1,21 @@
-import { calcularCosteo, calcularInversiones, calcularMercado, calcularProyeccionVentas, derivarEncuesta } from "@/core/calc";
+import {
+  calcularCosteo, calcularDepreciacion, calcularEstadosFinancieros, calcularFlujoCaja,
+  calcularInversiones, calcularMercado, calcularProyeccionVentas, derivarEncuesta,
+} from "@/core/calc";
 import type {
-  ActivoDepreciable, CapitalTrabajo, CosteoInput, DepreciacionInput, EncuestaInput, FlujoAnioInput,
-  GastoPreOperativo, InversionesInput, ItemInversion, MercadoInput, MercadoOwn, ProyeccionVentasInput,
+  ActivoDepreciable, CapitalTrabajo, CosteoInput, DepreciacionInput, EncuestaInput, EstadosFinancierosResult,
+  FlujoAnioInput, FlujoCajaInput, GastoPreOperativo, InversionesInput, ItemInversion, MercadoInput, MercadoOwn, ProyeccionVentasInput,
 } from "@/core/schemas";
-import { mercadoOwnSchema, VIDA_UTIL_SUGERIDA } from "@/core/schemas";
+import { mercadoOwnSchema, SUPUESTOS_DEFAULT, VIDA_UTIL_SUGERIDA } from "@/core/schemas";
+
+const ESCENARIOS_DEFAULT: FlujoCajaInput = {
+  escenarios: [
+    { clave: "optimista", inflacion: 0.025, tasaMercado: 0.16, riesgoInversionista: 0.08 },
+    { clave: "moderado", inflacion: 0.03, tasaMercado: 0.12, riesgoInversionista: 0.12 },
+    { clave: "pesimista", inflacion: 0.04, tasaMercado: 0.08, riesgoInversionista: 0.15 },
+  ],
+  pctIR: 0.295,
+};
 import type { ProjectData } from "./types";
 
 /**
@@ -88,6 +100,32 @@ export function contextoFlujo(data: ProjectData): {
     igvAPagar: a.totalIgvAPagar,
   }));
   return { inversionInicial, anios, listo: true };
+}
+
+/** Estados financieros completos derivados de todo el grafo de cálculo. */
+export function contextoEstados(data: ProjectData): { result: EstadosFinancierosResult | null; listo: boolean } {
+  const cf = contextoFlujo(data);
+  if (!cf.listo) return { result: null, listo: false };
+
+  const flujoInput = (data.flujo_caja as FlujoCajaInput | undefined) ?? ESCENARIOS_DEFAULT;
+  const flujo = calcularFlujoCaja(flujoInput, cf.inversionInicial, cf.anios);
+
+  const inv = data.inversiones as InversionesInput;
+  const cap = contextoCapitalTrabajo(data);
+  const invR = calcularInversiones(inv, cap);
+  const dep = construirDepreciacion(data);
+  const depR = calcularDepreciacion(dep.activos, dep.gastos);
+  const adelanto = (inv.preOperativos ?? []).find((p) => /alquiler/i.test(p.rubro));
+
+  const result = calcularEstadosFinancieros(flujo, {
+    inversionTotal: invR.inversionTotal,
+    activoFijoBruto: invR.totalActivoFijo,
+    adelantoAlquiler: adelanto ? adelanto.cantidad * adelanto.precio : 0,
+    deprecAnual: depR.totalDeprecAnual,
+    amortAnual: depR.totalAmortAnual,
+    supuestos: SUPUESTOS_DEFAULT,
+  });
+  return { result, listo: true };
 }
 
 const GRUPO_LABEL: Record<keyof InversionesInput["activoFijo"], string> = {

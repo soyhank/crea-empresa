@@ -10,7 +10,7 @@ import {
 } from "@/core/schemas";
 import { calcularCPC, calcularMercado, derivarEncuesta } from "@/core/calc";
 import {
-  construirDepreciacion, construirMercado, contextoCapitalTrabajo, contextoFlujo, contextoPuntoEquilibrio, contextoVentas,
+  construirDepreciacion, construirMercado, contextoCapitalTrabajo, contextoEstados, contextoFlujo, contextoPuntoEquilibrio, contextoVentas,
 } from "@/lib/derive";
 import { calcularEstados, isModuloCompleto, modulosAfectados, modulosCompletos, tieneDatos } from "@/lib/wizard";
 import { TopBar } from "@/components/TopBar";
@@ -41,13 +41,14 @@ import { ventasVacia, ventasEjemploKkori } from "@/features/ventas/defaults";
 import { FlujoCajaForm } from "@/features/flujoCaja/FlujoCajaForm";
 import { FlujoCajaResultados } from "@/features/flujoCaja/FlujoCajaResultados";
 import { flujoVacio, flujoEjemploKkori } from "@/features/flujoCaja/defaults";
+import { EstadosFinancierosPanel } from "@/features/estadosFinancieros/EstadosFinancierosPanel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
-  AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, CloudUpload, Construction, ListChecks, Sparkles, Zap,
+  AlertTriangle, ArrowLeft, ArrowRight, BarChart3, CheckCircle2, CloudUpload, Construction, ListChecks, Sparkles, Zap,
 } from "lucide-react";
 
 type SaveState = "idle" | "saving" | "saved";
@@ -187,7 +188,9 @@ export function ProyectoPage() {
   const ctxVentas = contextoVentas(projData);
   const flujoValue = (projData.flujo_caja as FlujoCajaInput | undefined) ?? flujoVacio();
   const ctxFlujo = contextoFlujo(projData);
-  const tieneForm = ["encuesta", "mercado", "costeo", "planilla", "inversiones", "depreciacion", "punto_equilibrio", "ventas", "flujo_caja"].includes(activo);
+  const estadosResult = activo === "estados_financieros" ? contextoEstados(projData).result : null;
+  const esEstados = activo === "estados_financieros";
+  const tieneForm = ["encuesta", "mercado", "costeo", "planilla", "inversiones", "depreciacion", "punto_equilibrio", "ventas", "flujo_caja", "estados_financieros"].includes(activo);
   const tieneEjemplo = ["encuesta", "mercado", "costeo", "planilla", "inversiones", "depreciacion", "ventas", "flujo_caja"].includes(activo);
 
   const formNode =
@@ -217,6 +220,8 @@ export function ProyectoPage() {
       <ProyeccionVentasForm value={ventasValue} onChange={(n) => editarModulo("ventas", n)} ctx={ctxVentas} onIrACosteo={() => selectModulo("costeo")} />
     ) : activo === "flujo_caja" ? (
       <FlujoCajaForm value={flujoValue} onChange={(n) => editarModulo("flujo_caja", n)} ctx={ctxFlujo} onIr={() => selectModulo("inversiones")} />
+    ) : activo === "estados_financieros" ? (
+      <EstadosFinancierosPanel result={estadosResult} onIrAFlujo={() => selectModulo("flujo_caja")} />
     ) : null;
 
   const prevMod = MODULOS.find((m) => m.orden === meta.orden - 1);
@@ -275,11 +280,11 @@ export function ProyectoPage() {
         <span className="flex-1 truncate text-sm font-medium text-slate-700">{project.nombre}</span>
       </div>
 
-      <div className="grid flex-1 grid-cols-1 md:grid-cols-[210px_1fr] xl:grid-cols-[210px_1fr_280px]">
+      <div className={"grid flex-1 grid-cols-1 md:grid-cols-[210px_1fr]" + (esEstados ? "" : " xl:grid-cols-[210px_1fr_280px]")}>
         <aside className="hidden border-r border-border bg-card md:block">{wizard}</aside>
 
         <main className="min-w-0 overflow-y-auto">
-          <div className="mx-auto max-w-2xl px-6 py-6">
+          <div className={"mx-auto px-6 py-6 " + (esEstados ? "max-w-5xl" : "max-w-2xl")}>
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2">
@@ -326,34 +331,47 @@ export function ProyectoPage() {
 
             {/* Footer navegación */}
             <div className="mt-8 flex items-center justify-between border-t border-border pt-5">
-              <Button variant="outline" disabled={!prevMod} onClick={() => prevMod && selectModulo(prevMod.id)}>
-                <ArrowLeft /> Anterior
-              </Button>
-              <Button disabled={!nextMod || nextBloqueado} onClick={() => nextMod && selectModulo(nextMod.id)}>
-                Siguiente módulo <ArrowRight />
-              </Button>
+              {esEstados ? (
+                <>
+                  <Button variant="outline" onClick={() => selectModulo("flujo_caja")}><ArrowLeft /> Volver a Flujo de caja</Button>
+                  <Button onClick={() => navigate(`/proyectos/${id}/tablero`)}><BarChart3 /> Ver Tablero <ArrowRight /></Button>
+                </>
+              ) : (
+                <>
+                  <Button variant="outline" disabled={!prevMod} onClick={() => prevMod && selectModulo(prevMod.id)}>
+                    <ArrowLeft /> Anterior
+                  </Button>
+                  <Button disabled={!nextMod || nextBloqueado} onClick={() => nextMod && selectModulo(nextMod.id)}>
+                    Siguiente módulo <ArrowRight />
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </main>
 
-        {/* Panel derecho (xl) */}
-        <aside className="hidden border-l border-border bg-card xl:block">
-          <div className="sticky top-14 max-h-[calc(100vh-3.5rem)] overflow-y-auto overflow-x-hidden p-4" aria-live="polite">{resultados}</div>
-        </aside>
+        {/* Panel derecho (xl) — oculto en Estados financieros (pantalla completa) */}
+        {!esEstados && (
+          <aside className="hidden border-l border-border bg-card xl:block">
+            <div className="sticky top-14 max-h-[calc(100vh-3.5rem)] overflow-y-auto overflow-x-hidden p-4" aria-live="polite">{resultados}</div>
+          </aside>
+        )}
       </div>
 
       {/* Botón flotante "Ver resultados" (<xl) */}
-      <Sheet open={rightOpen} onOpenChange={setRightOpen}>
-        <SheetTrigger asChild>
-          <Button className="fixed bottom-6 right-6 z-20 shadow-md xl:hidden" size="lg">
-            <Zap /> Ver resultados
-          </Button>
-        </SheetTrigger>
-        <SheetContent side="right" className="overflow-y-auto p-4">
-          <SheetTitle>Resultados de este módulo</SheetTitle>
-          <div aria-live="polite">{resultados}</div>
-        </SheetContent>
-      </Sheet>
+      {!esEstados && (
+        <Sheet open={rightOpen} onOpenChange={setRightOpen}>
+          <SheetTrigger asChild>
+            <Button className="fixed bottom-6 right-6 z-20 shadow-md xl:hidden" size="lg">
+              <Zap /> Ver resultados
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="right" className="overflow-y-auto p-4">
+            <SheetTitle>Resultados de este módulo</SheetTitle>
+            <div aria-live="polite">{resultados}</div>
+          </SheetContent>
+        </Sheet>
+      )}
     </div>
   );
 }

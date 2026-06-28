@@ -8,3 +8,5 @@ export * from "./puntoEquilibrio";
 export * from "./proyeccionVentas";
 export * from "./finanzas";
 export * from "./flujoCaja";
+export * from "./ratios";
+export * from "./estadosFinancieros";

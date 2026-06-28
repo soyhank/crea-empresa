@@ -5,9 +5,10 @@ import { data } from "@/lib/data";
 import type { Project, ProjectData } from "@/lib/types";
 import { MODULO_POR_ID, type CosteoInput, type FlujoCajaInput, type ModuloId } from "@/core/schemas";
 import { calcularCosteo, calcularFlujoCaja, calcularMercado, calcularPuntoEquilibrio } from "@/core/calc";
-import { construirMercado, contextoFlujo } from "@/lib/derive";
+import { construirMercado, contextoEstados, contextoFlujo } from "@/lib/derive";
 import { isModuloCompleto } from "@/lib/wizard";
 import { flujoVacio } from "@/features/flujoCaja/defaults";
+import { EstadosFinancierosPanel } from "@/features/estadosFinancieros/EstadosFinancierosPanel";
 import { formatInteger, formatPEN, formatPercent } from "@/core/money";
 import { Brand } from "@/components/Brand";
 import { Button } from "@/components/ui/button";
@@ -88,6 +89,7 @@ export function TableroPage() {
   const flujoValue = (projData.flujo_caja as FlujoCajaInput | undefined) ?? flujoVacio();
   const flujoR = flujoOk && ctxFlujo.listo ? calcularFlujoCaja(flujoValue, ctxFlujo.inversionInicial, ctxFlujo.anios) : null;
   const mod = flujoR?.escenarios.find((e) => e.clave === "moderado") ?? null;
+  const estados = contextoEstados(projData).result;
 
   const baseListo = mercadoOk && costeoOk;
 
@@ -272,7 +274,11 @@ export function TableroPage() {
             {/* 4. Estados financieros */}
             <section>
               <h2 className="mb-3 text-lg font-semibold text-slate-900">Estados financieros</h2>
-              <PendienteCard titulo="EERR · Situación financiera · Ratios" modulo="estados_financieros" />
+              {estados ? (
+                <EstadosFinancierosPanel result={estados} onIrAFlujo={() => navigate(`/proyectos/${id}/flujo_caja`)} />
+              ) : (
+                <PendienteCard titulo="EERR · Situación financiera · Ratios" modulo="estados_financieros" />
+              )}
             </section>
 
             <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
