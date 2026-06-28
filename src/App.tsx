@@ -37,7 +37,7 @@ export function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<Navigate to="/proyectos" replace />} />
       <Route path="/proyectos" element={<RequireAuth><DashboardPage /></RequireAuth>} />
-      <Route path="/proyecto/:id" element={<RequireAuth><ProyectoPage /></RequireAuth>} />
+      <Route path="/proyectos/:id" element={<RequireAuth><ProyectoPage /></RequireAuth>} />
       <Route path="/admin" element={<Navigate to="/admin/usuarios" replace />} />
       <Route path="/admin/usuarios" element={<RequireAuth adminOnly><AdminPage /></RequireAuth>} />
       <Route path="*" element={<Navigate to="/proyectos" replace />} />

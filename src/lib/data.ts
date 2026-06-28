@@ -1,7 +1,6 @@
-import type { ModuloId } from "@/core/schemas";
 import { normalizeUsername, usernameToEmail } from "@/core/auth/identity";
 import { isSupabaseConfigured, supabase } from "./supabase";
-import type { AppUser, Project, ProjectModules, Rol } from "./types";
+import type { AppUser, Project, ProjectData, Rol } from "./types";
 
 export interface NuevoUsuario {
   displayName: string;
@@ -9,37 +8,44 @@ export interface NuevoUsuario {
   role: Rol;
 }
 
+export interface NuevoProyecto {
+  nombre: string;
+  rubro?: string;
+  descripcion?: string;
+}
+
+export type ProyectoPatch = Partial<Pick<Project, "nombre" | "rubro" | "descripcion">>;
+
 /**
  * Capa de datos con una interfaz única para la UI. Dos implementaciones:
  *  - Supabase (con credenciales): Auth + Postgres + RLS + Edge Functions.
  *  - Demo (sin credenciales): localStorage con cuentas sembradas.
  *
- * Identidad: el usuario inicia sesión con su NOMBRE DE EMPRESARIO; nunca ve un
- * email. Internamente el nombre → slug → email sintético (ver core/auth/identity).
+ * Persistencia: cada proyecto guarda los inputs de todos sus módulos en un único
+ * JSONB (`data`). La completitud no se persiste: se deriva en cliente (ver wizard).
  */
 export interface DataProvider {
   readonly modo: "supabase" | "demo";
   // Auth
   currentUser(): Promise<AppUser | null>;
   onAuthChange(cb: (u: AppUser | null) => void): () => void;
-  /** `nombre` = nombre de empresario (display name). */
   signIn(nombre: string, password: string): Promise<AppUser>;
   signOut(): Promise<void>;
   // Proyectos
   listProjects(): Promise<Project[]>;
-  createProject(nombre: string, descripcion?: string): Promise<Project>;
+  createProject(input: NuevoProyecto): Promise<Project>;
+  updateProject(id: string, patch: ProyectoPatch): Promise<void>;
+  duplicateProject(id: string): Promise<Project>;
   deleteProject(id: string): Promise<void>;
   getProject(id: string): Promise<Project | null>;
-  // Módulos
-  loadModules(projectId: string): Promise<ProjectModules>;
-  saveModule(projectId: string, modulo: ModuloId, data: unknown, completo: boolean): Promise<void>;
+  /** Guarda el JSONB completo de inputs del proyecto. */
+  saveData(projectId: string, data: ProjectData): Promise<void>;
   // Admin
   listUsers(): Promise<AppUser[]>;
   createUser(input: NuevoUsuario): Promise<{ slug: string }>;
   resetPassword(userId: string, password: string): Promise<void>;
   setActive(userId: string, activo: boolean): Promise<void>;
   setRole(userId: string, role: Rol): Promise<void>;
-  /** true si el slug está disponible. */
   checkUsername(slug: string): Promise<boolean>;
 }
 
@@ -53,13 +59,10 @@ interface DemoUser extends AppUser {
   password: string;
 }
 
-// v2: nuevo modelo de identidad (username/display_name). Versionar invalida el
-// localStorage del esquema anterior (email/nombre) sin romper a quien ya entró.
 const K = {
   users: "ce_demo_users_v2",
   session: "ce_demo_session_v2",
   projects: "ce_demo_projects_v2",
-  modules: "ce_demo_modules_v2",
 };
 
 function read<T>(key: string, fallback: T): T {
@@ -76,11 +79,10 @@ function write(key: string, value: unknown) {
 
 function seedDemo() {
   if (read<DemoUser[] | null>(K.users, null)) return;
-  const seed: DemoUser[] = [
+  write(K.users, [
     { id: uid(), username: "administrador", displayName: "Administrador", role: "admin", activo: true, password: "admin123", createdAt: nowIso() },
     { id: uid(), username: "alumno-demo", displayName: "Alumno Demo", role: "user", activo: true, password: "alumno123", createdAt: nowIso() },
-  ];
-  write(K.users, seed);
+  ] satisfies DemoUser[]);
 }
 
 class DemoProvider implements DataProvider {
@@ -141,18 +143,35 @@ class DemoProvider implements DataProvider {
     return [...list].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
 
-  async createProject(nombre: string, descripcion?: string): Promise<Project> {
+  async createProject(input: NuevoProyecto): Promise<Project> {
     const u = await this.requireUser();
-    const p: Project = { id: uid(), userId: u.id, nombre, descripcion: descripcion ?? null, createdAt: nowIso(), updatedAt: nowIso() };
+    const p: Project = {
+      id: uid(), userId: u.id, nombre: input.nombre,
+      rubro: input.rubro ?? null, descripcion: input.descripcion ?? null,
+      data: {}, createdAt: nowIso(), updatedAt: nowIso(),
+    };
     write(K.projects, [...read<Project[]>(K.projects, []), p]);
     return p;
   }
 
+  async updateProject(id: string, patch: ProyectoPatch) {
+    write(K.projects, read<Project[]>(K.projects, []).map((p) => (p.id === id ? { ...p, ...patch, updatedAt: nowIso() } : p)));
+  }
+
+  async duplicateProject(id: string): Promise<Project> {
+    const u = await this.requireUser();
+    const orig = read<Project[]>(K.projects, []).find((p) => p.id === id);
+    if (!orig) throw new Error("Proyecto no encontrado");
+    const copia: Project = {
+      ...orig, id: uid(), userId: u.id, nombre: `${orig.nombre} (copia)`,
+      data: JSON.parse(JSON.stringify(orig.data)), createdAt: nowIso(), updatedAt: nowIso(),
+    };
+    write(K.projects, [...read<Project[]>(K.projects, []), copia]);
+    return copia;
+  }
+
   async deleteProject(id: string) {
     write(K.projects, read<Project[]>(K.projects, []).filter((p) => p.id !== id));
-    const mods = read<Record<string, ProjectModules>>(K.modules, {});
-    delete mods[id];
-    write(K.modules, mods);
   }
 
   async getProject(id: string): Promise<Project | null> {
@@ -163,22 +182,8 @@ class DemoProvider implements DataProvider {
     return p;
   }
 
-  async loadModules(projectId: string): Promise<ProjectModules> {
-    return read<Record<string, ProjectModules>>(K.modules, {})[projectId] ?? {};
-  }
-
-  async saveModule(projectId: string, modulo: ModuloId, data: unknown, completo: boolean) {
-    const mods = read<Record<string, ProjectModules>>(K.modules, {});
-    const current = mods[projectId] ?? {};
-    current[modulo] = { data, completo, updatedAt: nowIso() };
-    mods[projectId] = current;
-    write(K.modules, mods);
-    const projects = read<Project[]>(K.projects, []);
-    const idx = projects.findIndex((p) => p.id === projectId);
-    if (idx >= 0) {
-      projects[idx] = { ...projects[idx], updatedAt: nowIso() };
-      write(K.projects, projects);
-    }
+  async saveData(projectId: string, data: ProjectData) {
+    write(K.projects, read<Project[]>(K.projects, []).map((p) => (p.id === projectId ? { ...p, data, updatedAt: nowIso() } : p)));
   }
 
   // ----- Admin -----
@@ -201,16 +206,10 @@ class DemoProvider implements DataProvider {
     const slug = normalizeUsername(input.displayName);
     const users = read<DemoUser[]>(K.users, []);
     if (users.some((u) => u.username === slug)) throw new Error(`El usuario «${slug}» ya existe`);
-    const nu: DemoUser = {
-      id: uid(),
-      username: slug,
-      displayName: input.displayName.trim(),
-      role: input.role,
-      activo: true,
-      password: input.password,
-      createdAt: nowIso(),
-    };
-    write(K.users, [...users, nu]);
+    write(K.users, [...users, {
+      id: uid(), username: slug, displayName: input.displayName.trim(),
+      role: input.role, activo: true, password: input.password, createdAt: nowIso(),
+    }]);
     return { slug };
   }
 
@@ -233,6 +232,21 @@ class DemoProvider implements DataProvider {
 // ============================================================================
 // Supabase provider
 // ============================================================================
+const PROJECT_COLS = "id, user_id, nombre, rubro, descripcion, data, created_at, updated_at";
+
+function rowToProject(p: Record<string, unknown>): Project {
+  return {
+    id: p.id as string,
+    userId: p.user_id as string,
+    nombre: p.nombre as string,
+    rubro: (p.rubro as string) ?? null,
+    descripcion: (p.descripcion as string) ?? null,
+    data: (p.data as ProjectData) ?? {},
+    createdAt: p.created_at as string,
+    updatedAt: p.updated_at as string,
+  };
+}
+
 class SupabaseProvider implements DataProvider {
   readonly modo = "supabase" as const;
   private sb = supabase!;
@@ -244,14 +258,7 @@ class SupabaseProvider implements DataProvider {
       .eq("id", id)
       .single();
     if (!data) return null;
-    return {
-      id: data.id,
-      username: data.username,
-      displayName: data.display_name,
-      role: data.role,
-      activo: data.activo,
-      createdAt: data.created_at,
-    };
+    return { id: data.id, username: data.username, displayName: data.display_name, role: data.role, activo: data.activo, createdAt: data.created_at };
   }
 
   async currentUser(): Promise<AppUser | null> {
@@ -284,26 +291,38 @@ class SupabaseProvider implements DataProvider {
   }
 
   async listProjects(): Promise<Project[]> {
-    const { data, error } = await this.sb
-      .from("proyectos")
-      .select("id, user_id, nombre, descripcion, created_at, updated_at")
-      .order("updated_at", { ascending: false });
+    const { data, error } = await this.sb.from("proyectos").select(PROJECT_COLS).order("updated_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return (data ?? []).map((p) => ({
-      id: p.id, userId: p.user_id, nombre: p.nombre, descripcion: p.descripcion,
-      createdAt: p.created_at, updatedAt: p.updated_at,
-    }));
+    return (data ?? []).map(rowToProject);
   }
 
-  async createProject(nombre: string, descripcion?: string): Promise<Project> {
+  async createProject(input: NuevoProyecto): Promise<Project> {
     const { data: u } = await this.sb.auth.getUser();
     const { data, error } = await this.sb
       .from("proyectos")
-      .insert({ nombre, descripcion: descripcion ?? null, user_id: u.user?.id })
-      .select()
+      .insert({ nombre: input.nombre, rubro: input.rubro ?? null, descripcion: input.descripcion ?? null, user_id: u.user?.id, data: {} })
+      .select(PROJECT_COLS)
       .single();
     if (error) throw new Error(error.message);
-    return { id: data.id, userId: data.user_id, nombre: data.nombre, descripcion: data.descripcion, createdAt: data.created_at, updatedAt: data.updated_at };
+    return rowToProject(data);
+  }
+
+  async updateProject(id: string, patch: ProyectoPatch) {
+    const { error } = await this.sb.from("proyectos").update(patch).eq("id", id);
+    if (error) throw new Error(error.message);
+  }
+
+  async duplicateProject(id: string): Promise<Project> {
+    const orig = await this.getProject(id);
+    if (!orig) throw new Error("Proyecto no encontrado");
+    const { data: u } = await this.sb.auth.getUser();
+    const { data, error } = await this.sb
+      .from("proyectos")
+      .insert({ nombre: `${orig.nombre} (copia)`, rubro: orig.rubro, descripcion: orig.descripcion, user_id: u.user?.id, data: orig.data })
+      .select(PROJECT_COLS)
+      .single();
+    if (error) throw new Error(error.message);
+    return rowToProject(data);
   }
 
   async deleteProject(id: string) {
@@ -312,32 +331,12 @@ class SupabaseProvider implements DataProvider {
   }
 
   async getProject(id: string): Promise<Project | null> {
-    const { data } = await this.sb
-      .from("proyectos")
-      .select("id, user_id, nombre, descripcion, created_at, updated_at")
-      .eq("id", id)
-      .maybeSingle();
-    if (!data) return null;
-    return { id: data.id, userId: data.user_id, nombre: data.nombre, descripcion: data.descripcion, createdAt: data.created_at, updatedAt: data.updated_at };
+    const { data } = await this.sb.from("proyectos").select(PROJECT_COLS).eq("id", id).maybeSingle();
+    return data ? rowToProject(data) : null;
   }
 
-  async loadModules(projectId: string): Promise<ProjectModules> {
-    const { data, error } = await this.sb
-      .from("proyecto_modulos")
-      .select("modulo, data, completo, updated_at")
-      .eq("proyecto_id", projectId);
-    if (error) throw new Error(error.message);
-    const out: ProjectModules = {};
-    (data ?? []).forEach((r) => {
-      out[r.modulo as ModuloId] = { data: r.data, completo: r.completo, updatedAt: r.updated_at };
-    });
-    return out;
-  }
-
-  async saveModule(projectId: string, modulo: ModuloId, data: unknown, completo: boolean) {
-    const { error } = await this.sb
-      .from("proyecto_modulos")
-      .upsert({ proyecto_id: projectId, modulo, data, completo }, { onConflict: "proyecto_id,modulo" });
+  async saveData(projectId: string, data: ProjectData) {
+    const { error } = await this.sb.from("proyectos").update({ data }).eq("id", projectId);
     if (error) throw new Error(error.message);
   }
 
@@ -348,23 +347,17 @@ class SupabaseProvider implements DataProvider {
       .select("id, username, display_name, role, activo, created_at")
       .order("created_at", { ascending: true });
     if (error) throw new Error(error.message);
-    return (data ?? []).map((d) => ({
-      id: d.id, username: d.username, displayName: d.display_name, role: d.role, activo: d.activo, createdAt: d.created_at,
-    }));
+    return (data ?? []).map((d) => ({ id: d.id, username: d.username, displayName: d.display_name, role: d.role, activo: d.activo, createdAt: d.created_at }));
   }
 
   async checkUsername(slug: string): Promise<boolean> {
-    const { count } = await this.sb
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("username", slug);
+    const { count } = await this.sb.from("profiles").select("id", { count: "exact", head: true }).eq("username", slug);
     return (count ?? 0) === 0;
   }
 
   private async invoke(fn: string, body: Record<string, unknown>) {
     const { data, error } = await this.sb.functions.invoke(fn, { body });
     if (error) {
-      // Intenta extraer el mensaje del cuerpo de la respuesta de la función.
       const ctx = (error as { context?: Response }).context;
       if (ctx && typeof ctx.json === "function") {
         try {
@@ -381,11 +374,7 @@ class SupabaseProvider implements DataProvider {
   }
 
   async createUser(input: NuevoUsuario): Promise<{ slug: string }> {
-    const data = await this.invoke("createUser", {
-      display_name: input.displayName,
-      password: input.password,
-      role: input.role,
-    });
+    const data = await this.invoke("createUser", { display_name: input.displayName, password: input.password, role: input.role });
     return { slug: data?.slug ?? normalizeUsername(input.displayName) };
   }
 

@@ -1,5 +1,5 @@
 import { MODULOS, MODULO_POR_ID, type ModuloId, type EstadoModulo } from "@/core/schemas";
-import type { ProjectModules } from "./types";
+import type { ProjectData } from "./types";
 
 export interface ModuloEstado {
   id: ModuloId;
@@ -8,20 +8,33 @@ export interface ModuloEstado {
   bloqueadoPor?: string;
 }
 
-/** Calcula el estado de cada módulo del wizard a partir de los datos guardados. */
-export function calcularEstados(modules: ProjectModules): Record<ModuloId, ModuloEstado> {
+/** ¿El módulo tiene algún input guardado (aunque sea parcial)? */
+export function tieneDatos(id: ModuloId, data: ProjectData): boolean {
+  const d = data?.[id];
+  return !!d && typeof d === "object" && Object.keys(d as object).length > 0;
+}
+
+/**
+ * Un módulo está COMPLETO cuando sus inputs pasan la validación Zod del módulo.
+ * No se persiste: se deriva siempre del JSONB del proyecto.
+ */
+export function isModuloCompleto(id: ModuloId, data: ProjectData): boolean {
+  if (!tieneDatos(id, data)) return false;
+  return MODULO_POR_ID[id].schema.safeParse(data[id]).success;
+}
+
+/** Estado de cada módulo del wizard a partir de los datos del proyecto. */
+export function calcularEstados(data: ProjectData): Record<ModuloId, ModuloEstado> {
+  const completos = {} as Record<ModuloId, boolean>;
+  for (const m of MODULOS) completos[m.id] = isModuloCompleto(m.id, data);
+
   const out = {} as Record<ModuloId, ModuloEstado>;
   for (const meta of MODULOS) {
-    const rec = modules[meta.id];
-    const completo = rec?.completo === true;
-    const tieneDatos = rec?.data != null && Object.keys(rec.data as object).length > 0;
-
-    const depPendiente = meta.dependencias.find((d) => modules[d]?.completo !== true);
-
+    const depPendiente = meta.dependencias.find((dep) => !completos[dep]);
     let estado: EstadoModulo;
-    if (completo) estado = "completo";
+    if (completos[meta.id]) estado = "completo";
     else if (depPendiente) estado = "bloqueado";
-    else if (tieneDatos) estado = "en_progreso";
+    else if (tieneDatos(meta.id, data)) estado = "en_progreso";
     else estado = "pendiente";
 
     out[meta.id] = {
@@ -33,9 +46,12 @@ export function calcularEstados(modules: ProjectModules): Record<ModuloId, Modul
   return out;
 }
 
-/** % de avance global del proyecto. */
-export function porcentajeAvance(modules: ProjectModules): number {
-  const total = MODULOS.length;
-  const completos = MODULOS.filter((m) => modules[m.id]?.completo === true).length;
-  return Math.round((completos / total) * 100);
+export function modulosCompletos(data: ProjectData): number {
+  return MODULOS.filter((m) => isModuloCompleto(m.id, data)).length;
 }
+
+export function porcentajeAvance(data: ProjectData): number {
+  return Math.round((modulosCompletos(data) / MODULOS.length) * 100);
+}
+
+export const TOTAL_MODULOS = MODULOS.length;
