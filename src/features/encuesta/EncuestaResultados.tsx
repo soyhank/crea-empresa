@@ -14,23 +14,19 @@ export function EncuestaResultados({ value }: { value: EncuestaInput }) {
         <Zap className="size-4 text-primary" /> Resultados de este módulo
       </div>
 
+      <p className="text-xs text-muted-foreground">Lo que esta encuesta entrega a Mercado:</p>
       <div className="space-y-1.5">
-        <div className="flex items-center justify-between rounded-md border border-border bg-slate-50 px-3 py-1.5">
-          <span className="text-xs text-slate-700">P3 → Mercado disponible</span>
-          <span className="text-sm font-semibold tabular text-slate-900">{formatPercent(d.factorDisponibilidad)}</span>
+        <div className="rounded-md border border-border bg-slate-50 px-3 py-2">
+          <p className="text-[11px] text-muted-foreground">P3 · % consumo semanal → Mercado disponible</p>
+          <p className="text-lg font-bold tabular text-slate-900">{formatPercent(d.factorDisponibilidad)}</p>
         </div>
-        <div className="flex items-center justify-between rounded-md border border-border bg-slate-50 px-3 py-1.5">
-          <span className="text-xs text-slate-700">P6 → Mercado efectivo</span>
-          <span className="text-sm font-semibold tabular text-slate-900">{formatPercent(d.factorEfectividad)}</span>
-        </div>
-        <div className="flex items-center justify-between rounded-md border border-border bg-slate-50 px-3 py-1.5">
-          <span className="text-xs text-slate-700">P6 → Consumo per cápita</span>
-          <span className="text-sm font-semibold tabular text-slate-900">{formatNumber(cpc, 6)}</span>
+        <div className="rounded-md border border-border bg-slate-50 px-3 py-2">
+          <p className="text-[11px] text-muted-foreground">P6 · Consumo per cápita → Mercado</p>
+          <p className="text-lg font-bold tabular text-slate-900">{formatNumber(cpc, 2)} <span className="text-xs font-medium text-muted-foreground">cajas</span></p>
         </div>
       </div>
 
       <div className="rounded-lg border border-border p-3">
-        <p className="mb-2 text-xs font-medium text-muted-foreground">Requisito para desbloquear Mercado</p>
         <ul className="space-y-1 text-sm">
           <li className="flex items-center gap-2">
             {d.p3Cargada ? <CircleCheck className="size-4 text-success" /> : <CircleDashed className="size-4 text-muted-foreground" />}
@@ -41,8 +37,8 @@ export function EncuestaResultados({ value }: { value: EncuestaInput }) {
             P6 con frecuencias
           </li>
         </ul>
-        <p className="mt-2 text-xs text-muted-foreground">
-          {d.listo ? "Mercado desbloqueado ✓" : "Carga P3 y P6 para desbloquear Mercado."}
+        <p className={"mt-2 flex items-center gap-1 text-xs font-medium " + (d.listo ? "text-success" : "text-muted-foreground")}>
+          {d.listo ? <><CircleCheck className="size-3.5" /> Listo para Mercado</> : "Carga P3 y P6 para desbloquear Mercado."}
         </p>
       </div>
     </div>

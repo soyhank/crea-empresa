@@ -6,7 +6,7 @@ import type { Project, ProjectData } from "@/lib/types";
 import {
   MODULOS, MODULO_POR_ID, moduloIdSchema, type CosteoInput, type EncuestaInput, type MercadoOwn, type ModuloId,
 } from "@/core/schemas";
-import { calcularMercado } from "@/core/calc";
+import { calcularCPC, calcularMercado, derivarEncuesta } from "@/core/calc";
 import { construirMercado } from "@/lib/derive";
 import { calcularEstados, isModuloCompleto, modulosAguasAbajo, modulosCompletos, tieneDatos } from "@/lib/wizard";
 import { TopBar } from "@/components/TopBar";
@@ -157,7 +157,15 @@ export function ProyectoPage() {
     activo === "encuesta" ? (
       <EncuestaForm value={encuestaValue} onChange={(n) => editarModulo("encuesta", n)} />
     ) : activo === "mercado" ? (
-      <MercadoForm value={mercadoValue} onChange={(n) => editarModulo("mercado", n)} />
+      <MercadoForm
+        value={mercadoValue}
+        onChange={(n) => editarModulo("mercado", n)}
+        herencia={(() => {
+          const e = derivarEncuesta(projData.encuesta as Partial<EncuestaInput> | undefined);
+          return { factorDisponibilidad: e.factorDisponibilidad, consumoPerCapita: calcularCPC(e.consumoPerCapita), listo: e.listo };
+        })()}
+        onIrAEncuesta={() => selectModulo("encuesta")}
+      />
     ) : activo === "costeo" ? (
       <CosteoForm value={costeoValue} onChange={(n) => editarModulo("costeo", n)} />
     ) : null;

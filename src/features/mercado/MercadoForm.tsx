@@ -1,19 +1,27 @@
 import type { MercadoOwn } from "@/core/schemas";
 import { calcularUniverso } from "@/core/calc";
-import { formatInteger } from "@/core/money";
+import { formatInteger, formatNumber, formatPercent } from "@/core/money";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PercentField } from "@/components/Field";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { rowId } from "@/lib/utils";
-import { Info, Lock, Plus, Trash2 } from "lucide-react";
+import { CircleCheck, Lock, Plus, Trash2 } from "lucide-react";
+
+export interface HerenciaEncuesta {
+  factorDisponibilidad: number;
+  consumoPerCapita: number;
+  listo: boolean;
+}
 
 interface Props {
   value: MercadoOwn;
   onChange: (next: MercadoOwn) => void;
+  herencia: HerenciaEncuesta;
+  onIrAEncuesta: () => void;
 }
 
-export function MercadoForm({ value, onChange }: Props) {
+export function MercadoForm({ value, onChange, herencia, onIrAEncuesta }: Props) {
   const set = (patch: Partial<MercadoOwn>) => onChange({ ...value, ...patch });
 
   const updDistrito = (id: string, patch: Partial<MercadoOwn["distritos"][number]>) =>
@@ -28,7 +36,7 @@ export function MercadoForm({ value, onChange }: Props) {
   };
 
   return (
-    <Accordion type="multiple" defaultValue={["poblacion", "segmentacion"]} className="space-y-3">
+    <Accordion type="multiple" defaultValue={["poblacion", "segmentacion", "encuesta"]} className="space-y-3">
       {/* 1. Datos poblacionales */}
       <AccordionItem value="poblacion">
         <AccordionTrigger>1 · Datos poblacionales</AccordionTrigger>
@@ -73,10 +81,40 @@ export function MercadoForm({ value, onChange }: Props) {
             <PercentField label="Captación de mercado" helper="Participación objetivo del mercado efectivo" value={value.participacionMercado} onChange={(v) => set({ participacionMercado: v })} />
             <PercentField label="Crecimiento poblacional anual" helper="Para la proyección de ventas" value={value.crecimientoPoblacional} onChange={(v) => set({ crecimientoPoblacional: v })} />
           </div>
-          <div className="mt-4 flex items-start gap-2 rounded-md bg-accent/60 p-3 text-xs text-accent-foreground">
-            <Info className="mt-0.5 size-3.5 shrink-0" />
-            Los factores de Mercado disponible y efectivo, y el consumo per cápita, provienen automáticamente de las preguntas P3 y P6 del módulo Encuesta.
-          </div>
+        </AccordionContent>
+      </AccordionItem>
+
+      {/* 3. Datos heredados de la encuesta (no editable) */}
+      <AccordionItem value="encuesta">
+        <AccordionTrigger>3 · Datos heredados de la encuesta</AccordionTrigger>
+        <AccordionContent>
+          {herencia.listo ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-lg border border-border bg-slate-50 p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-slate-700">P3 · Consumo semanal</span>
+                  <Lock className="size-3.5 text-muted-foreground" />
+                </div>
+                <p className="mt-1 text-2xl font-bold tabular text-slate-900">{formatPercent(herencia.factorDisponibilidad)}</p>
+                <p className="mt-1 flex items-center gap-1 text-[11px] text-success"><CircleCheck className="size-3" /> proviene de Encuesta</p>
+              </div>
+              <div className="rounded-lg border border-border bg-slate-50 p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-slate-700">P6 · Consumo per cápita</span>
+                  <Lock className="size-3.5 text-muted-foreground" />
+                </div>
+                <p className="mt-1 text-2xl font-bold tabular text-slate-900">{formatNumber(herencia.consumoPerCapita, 2)} <span className="text-sm font-medium text-muted-foreground">cajas</span></p>
+                <p className="mt-1 flex items-center gap-1 text-[11px] text-success"><CircleCheck className="size-3" /> proviene de Encuesta</p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-warning/40 bg-warning-soft py-8 text-center">
+              <p className="text-sm font-medium text-foreground">Datos de encuesta pendientes</p>
+              <p className="max-w-xs text-xs text-muted-foreground">Carga las frecuencias de P3 y P6 en el módulo Encuesta para heredar el consumo semanal y el consumo per cápita.</p>
+              <Button variant="outline" size="sm" onClick={onIrAEncuesta}>Ir a Encuesta</Button>
+            </div>
+          )}
+          <p className="mt-2 text-xs text-muted-foreground">Las marcas de clase no se editan aquí; viven en la pregunta P6.</p>
         </AccordionContent>
       </AccordionItem>
     </Accordion>
