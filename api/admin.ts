@@ -29,6 +29,24 @@ function admin(): SupabaseClient {
   });
 }
 
+/**
+ * El namespace `auth.admin` existe en runtime al usar la service_role key, pero
+ * algunos builders (p. ej. el de funciones de Vercel) no lo exponen en los
+ * tipos. Lo accedemos con una firma mínima y segura.
+ */
+interface AuthAdmin {
+  createUser(attrs: Record<string, unknown>): Promise<{
+    data: { user: { id: string } | null };
+    error: { message: string } | null;
+  }>;
+  updateUserById(id: string, attrs: Record<string, unknown>): Promise<{
+    error: { message: string } | null;
+  }>;
+}
+function authAdmin(db: SupabaseClient): AuthAdmin {
+  return (db.auth as unknown as { admin: AuthAdmin }).admin;
+}
+
 async function callerIsAdmin(req: VercelRequest, db: SupabaseClient): Promise<boolean> {
   const header = req.headers.authorization ?? "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : "";
@@ -87,7 +105,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           res.status(400).json({ error: "Email válido y contraseña (≥6) requeridos" });
           return;
         }
-        const { data: created, error } = await db.auth.admin.createUser({
+        const { data: created, error } = await authAdmin(db).createUser({
           email,
           password,
           email_confirm: true,
@@ -121,7 +139,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return;
         }
         // Bloquear el login revocando la sesión y marcando el perfil.
-        await db.auth.admin.updateUserById(userId, {
+        await authAdmin(db).updateUserById(userId, {
           ban_duration: activo ? "none" : "876000h", // ~100 años
         });
         const { error } = await db.from("profiles").update({ activo }).eq("id", userId);
@@ -156,7 +174,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           res.status(400).json({ error: "userId y contraseña (≥6) requeridos" });
           return;
         }
-        const { error } = await db.auth.admin.updateUserById(userId, { password });
+        const { error } = await authAdmin(db).updateUserById(userId, { password });
         if (error) {
           res.status(400).json({ error: error.message });
           return;
