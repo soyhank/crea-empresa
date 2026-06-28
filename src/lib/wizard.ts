@@ -1,5 +1,17 @@
-import { MODULOS, MODULO_POR_ID, type ModuloId, type EstadoModulo } from "@/core/schemas";
+import { MODULOS, MODULO_POR_ID, mercadoOwnSchema, type ModuloId, type EstadoModulo } from "@/core/schemas";
+import { derivarEncuesta } from "@/core/calc";
+import type { EncuestaInput } from "@/core/schemas";
 import type { ProjectData } from "./types";
+
+/**
+ * Reglas de completitud especiales (sobrescriben la validación Zod por defecto):
+ *  - Encuesta: lista cuando P3 y P6 tienen frecuencias (las descriptivas no cuentan).
+ *  - Mercado: solo sus campos propios; los factores vienen de la Encuesta.
+ */
+const COMPLETION_OVERRIDES: Partial<Record<ModuloId, (data: ProjectData) => boolean>> = {
+  encuesta: (data) => derivarEncuesta(data.encuesta as Partial<EncuestaInput> | undefined).listo,
+  mercado: (data) => mercadoOwnSchema.safeParse(data.mercado).success,
+};
 
 export interface ModuloEstado {
   id: ModuloId;
@@ -19,6 +31,8 @@ export function tieneDatos(id: ModuloId, data: ProjectData): boolean {
  * No se persiste: se deriva siempre del JSONB del proyecto.
  */
 export function isModuloCompleto(id: ModuloId, data: ProjectData): boolean {
+  const override = COMPLETION_OVERRIDES[id];
+  if (override) return override(data);
   if (!tieneDatos(id, data)) return false;
   return MODULO_POR_ID[id].schema.safeParse(data[id]).success;
 }

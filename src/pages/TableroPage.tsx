@@ -3,8 +3,9 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { data } from "@/lib/data";
 import type { Project, ProjectData } from "@/lib/types";
-import { MODULO_POR_ID, type CosteoInput, type MercadoInput, type ModuloId } from "@/core/schemas";
+import { MODULO_POR_ID, type CosteoInput, type ModuloId } from "@/core/schemas";
 import { calcularCosteo, calcularMercado, calcularPuntoEquilibrio } from "@/core/calc";
+import { construirMercado } from "@/lib/derive";
 import { isModuloCompleto } from "@/lib/wizard";
 import { formatInteger, formatPEN } from "@/core/money";
 import { Brand } from "@/components/Brand";
@@ -20,7 +21,7 @@ import {
 import { CircleAlert, CircleCheck, FileDown, FileSpreadsheet, Lock, Pencil } from "lucide-react";
 
 /** Módulos cuyo cálculo alimenta el tablero completo (hasta flujo de caja). */
-const REQUERIDOS: ModuloId[] = ["mercado", "costeo", "inversiones", "depreciacion", "ventas", "flujo_caja"];
+const REQUERIDOS: ModuloId[] = ["encuesta", "mercado", "costeo", "inversiones", "depreciacion", "ventas", "flujo_caja"];
 
 const DONUT_COLORS = ["#6366f1", "#a5b4fc"];
 
@@ -75,7 +76,7 @@ export function TableroPage() {
   const flujoOk = completo("flujo_caja");
   const pendientes = REQUERIDOS.filter((m) => !completo(m));
 
-  const mercadoR = mercadoOk ? calcularMercado(projData.mercado as MercadoInput) : null;
+  const mercadoR = mercadoOk ? calcularMercado(construirMercado(projData)) : null;
   const demandaMensual = mercadoR?.demandaPorPeriodo ?? 0;
   const costeoR = costeoOk && mercadoOk ? calcularCosteo(projData.costeo as CosteoInput, { demandaMensual }) : null;
   const peR = costeoR
@@ -166,7 +167,7 @@ export function TableroPage() {
                 <AlertTitle>Tablero parcial</AlertTitle>
                 <AlertDescription>
                   VAN, TIR, Payback, inversión, proyección a 36 meses y estados financieros aparecerán al completar:{" "}
-                  {pendientes.filter((m) => m !== "mercado" && m !== "costeo").map((m, i, arr) => (
+                  {pendientes.filter((m) => !["encuesta", "mercado", "costeo"].includes(m)).map((m, i, arr) => (
                     <React.Fragment key={m}>
                       <Link to={`/proyectos/${id}/${m}`} className="font-medium text-primary underline-offset-2 hover:underline">{MODULO_POR_ID[m].nombre}</Link>
                       {i < arr.length - 1 ? ", " : ""}

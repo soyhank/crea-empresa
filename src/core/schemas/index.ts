@@ -40,20 +40,20 @@ export interface ModuloMeta {
  */
 export const MODULOS: readonly ModuloMeta[] = [
   {
-    id: "mercado",
-    orden: 1,
-    nombre: "Mercado y demanda",
-    descripcion: "Universo, segmentación y estimación de la demanda del proyecto.",
-    dependencias: [],
-    schema: mercadoInputSchema,
-  },
-  {
     id: "encuesta",
-    orden: 2,
+    orden: 1,
     nombre: "Encuesta",
-    descripcion: "Resultados agregados (fi) de la encuesta aplicada en Google Forms.",
+    descripcion: "Frecuencias (fi) de la encuesta; P3 y P6 alimentan el mercado.",
     dependencias: [],
     schema: encuestaInputSchema,
+  },
+  {
+    id: "mercado",
+    orden: 2,
+    nombre: "Mercado y demanda",
+    descripcion: "Universo, segmentación y demanda. Usa P3 y P6 de la encuesta.",
+    dependencias: ["encuesta"],
+    schema: mercadoInputSchema,
   },
   {
     id: "costeo",

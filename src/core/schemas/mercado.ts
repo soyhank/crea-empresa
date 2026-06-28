@@ -52,6 +52,20 @@ export const mercadoInputSchema = z.object({
 });
 export type MercadoInput = z.infer<typeof mercadoInputSchema>;
 
+/**
+ * Campos PROPIOS de Mercado (los que el usuario edita en su formulario).
+ * Los factores MD/ME y el consumo per cápita NO están aquí: provienen del
+ * módulo Encuesta (P3 y P6). Se usa para evaluar la completitud del módulo.
+ */
+export const mercadoOwnSchema = z.object({
+  distritos: z.array(distritoSchema).min(1, "Agrega al menos un distrito"),
+  porcentajeEdad: fraccionSchema,
+  porcentajeNSE: fraccionSchema,
+  participacionMercado: fraccionSchema,
+  crecimientoPoblacional: fraccionSchema.default(0.02),
+});
+export type MercadoOwn = z.infer<typeof mercadoOwnSchema>;
+
 /** Resultado derivado (NUNCA se persiste; se recalcula siempre). */
 export interface MercadoResult {
   universo: number;

@@ -5,9 +5,9 @@ import { data } from "@/lib/data";
 import type { Project } from "@/lib/types";
 import { useAuth } from "@/lib/auth";
 import { isModuloCompleto, modulosCompletos, porcentajeAvance, TOTAL_MODULOS } from "@/lib/wizard";
+import { construirMercado } from "@/lib/derive";
 import { calcularMercado } from "@/core/calc";
 import { formatNumber } from "@/core/money";
-import type { MercadoInput } from "@/core/schemas";
 import { TopBar } from "@/components/TopBar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -56,7 +56,7 @@ function ProjectCard({ p, onOpen, onRename, onDuplicate, onExport, onDelete }: {
   const completos = modulosCompletos(p.data);
   const avance = porcentajeAvance(p.data);
   const mercadoOk = isModuloCompleto("mercado", p.data);
-  const demanda = mercadoOk ? calcularMercado(p.data.mercado as MercadoInput).demandaAnual : null;
+  const demanda = mercadoOk ? calcularMercado(construirMercado(p.data)).demandaAnual : null;
 
   return (
     <Card className="group flex flex-col transition-shadow hover:shadow-md">
@@ -135,7 +135,7 @@ export function DashboardPage() {
   }, []);
   React.useEffect(reload, [reload]);
 
-  const abrir = (p: Project) => navigate(`/proyectos/${p.id}/${p.data.lastModulo ?? "mercado"}`);
+  const abrir = (p: Project) => navigate(`/proyectos/${p.id}/${p.data.lastModulo ?? "encuesta"}`);
 
   const crear = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,7 +144,7 @@ export function DashboardPage() {
     try {
       const p = await data.createProject({ nombre: form.nombre.trim(), rubro: form.rubro.trim() || undefined, descripcion: form.descripcion.trim() || undefined });
       toast.success("Proyecto creado");
-      navigate(`/proyectos/${p.id}/mercado`);
+      navigate(`/proyectos/${p.id}/encuesta`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error");
     } finally {

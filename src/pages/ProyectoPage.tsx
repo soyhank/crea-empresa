@@ -4,12 +4,16 @@ import { toast } from "sonner";
 import { data } from "@/lib/data";
 import type { Project, ProjectData } from "@/lib/types";
 import {
-  MODULOS, MODULO_POR_ID, moduloIdSchema, type CosteoInput, type MercadoInput, type ModuloId,
+  MODULOS, MODULO_POR_ID, moduloIdSchema, type CosteoInput, type EncuestaInput, type MercadoOwn, type ModuloId,
 } from "@/core/schemas";
 import { calcularMercado } from "@/core/calc";
+import { construirMercado } from "@/lib/derive";
 import { calcularEstados, isModuloCompleto, modulosAguasAbajo, modulosCompletos, tieneDatos } from "@/lib/wizard";
 import { TopBar } from "@/components/TopBar";
 import { SidebarWizard } from "@/features/proyecto/SidebarWizard";
+import { EncuestaForm } from "@/features/encuesta/EncuestaForm";
+import { EncuestaResultados } from "@/features/encuesta/EncuestaResultados";
+import { encuestaVacia, encuestaEjemploKkori } from "@/features/encuesta/defaults";
 import { MercadoForm } from "@/features/mercado/MercadoForm";
 import { MercadoResultados } from "@/features/mercado/MercadoResultados";
 import { mercadoVacio, mercadoEjemploKkori } from "@/features/mercado/defaults";
@@ -62,11 +66,11 @@ export function ProyectoPage() {
   // Normaliza la URL: si el módulo es inválido, redirige al último editado.
   React.useEffect(() => {
     if (!loading && project && !moduloValido) {
-      navigate(`/proyectos/${id}/${projData.lastModulo ?? "mercado"}`, { replace: true });
+      navigate(`/proyectos/${id}/${projData.lastModulo ?? "encuesta"}`, { replace: true });
     }
   }, [loading, project, moduloValido, id, projData.lastModulo, navigate]);
 
-  const activo: ModuloId = moduloValido ?? "mercado";
+  const activo: ModuloId = moduloValido ?? "encuesta";
 
   const estados = React.useMemo(() => calcularEstados(projData), [projData]);
   const completos = React.useMemo(() => modulosCompletos(projData), [projData]);
@@ -111,7 +115,8 @@ export function ProyectoPage() {
   };
 
   const cargarEjemplo = (mod: ModuloId) => {
-    if (mod === "mercado") editarModulo("mercado", mercadoEjemploKkori());
+    if (mod === "encuesta") editarModulo("encuesta", encuestaEjemploKkori());
+    else if (mod === "mercado") editarModulo("mercado", mercadoEjemploKkori());
     else if (mod === "costeo") editarModulo("costeo", costeoEjemploKkori());
     toast.success("Ejemplo K-KORI cargado");
   };
@@ -137,17 +142,21 @@ export function ProyectoPage() {
 
   const meta = MODULO_POR_ID[activo];
 
-  // Contexto aguas arriba para módulos que dependen de cálculos previos.
+  // Mercado efectivo = campos propios + factores derivados de la Encuesta.
+  const mercadoEfectivo = construirMercado(projData);
   const demandaMensual = isModuloCompleto("mercado", projData)
-    ? calcularMercado(projData.mercado as MercadoInput).demandaPorPeriodo
+    ? calcularMercado(mercadoEfectivo).demandaPorPeriodo
     : 0;
 
-  const mercadoValue = (projData.mercado as MercadoInput | undefined) ?? mercadoVacio();
+  const encuestaValue = (projData.encuesta as EncuestaInput | undefined) ?? encuestaVacia();
+  const mercadoValue = (projData.mercado as MercadoOwn | undefined) ?? mercadoVacio();
   const costeoValue = (projData.costeo as CosteoInput | undefined) ?? costeoVacio();
-  const tieneForm = activo === "mercado" || activo === "costeo";
+  const tieneForm = activo === "encuesta" || activo === "mercado" || activo === "costeo";
 
   const formNode =
-    activo === "mercado" ? (
+    activo === "encuesta" ? (
+      <EncuestaForm value={encuestaValue} onChange={(n) => editarModulo("encuesta", n)} />
+    ) : activo === "mercado" ? (
       <MercadoForm value={mercadoValue} onChange={(n) => editarModulo("mercado", n)} />
     ) : activo === "costeo" ? (
       <CosteoForm value={costeoValue} onChange={(n) => editarModulo("costeo", n)} />
@@ -172,7 +181,8 @@ export function ProyectoPage() {
   );
 
   const resultados =
-    activo === "mercado" ? <MercadoResultados value={mercadoValue} /> :
+    activo === "encuesta" ? <EncuestaResultados value={encuestaValue} /> :
+    activo === "mercado" ? <MercadoResultados value={mercadoEfectivo} /> :
     activo === "costeo" ? <CosteoResultados value={costeoValue} demandaMensual={demandaMensual} /> : (
       <p className="text-sm text-muted-foreground">Los resultados en vivo de este módulo aparecerán aquí.</p>
     );
