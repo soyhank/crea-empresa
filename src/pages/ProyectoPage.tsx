@@ -151,7 +151,7 @@ export function ProyectoPage() {
     return (
       <div className="min-h-screen bg-background">
         <TopBar />
-        <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] xl:grid-cols-[200px_1fr_180px]">
+        <div className="grid grid-cols-1 md:grid-cols-[210px_1fr] xl:grid-cols-[210px_1fr_280px]">
           <div className="hidden space-y-3 border-r border-border p-4 md:block">
             {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-9 w-full" />)}
           </div>
@@ -275,7 +275,7 @@ export function ProyectoPage() {
         <span className="flex-1 truncate text-sm font-medium text-slate-700">{project.nombre}</span>
       </div>
 
-      <div className="grid flex-1 grid-cols-1 md:grid-cols-[200px_1fr] xl:grid-cols-[200px_1fr_180px]">
+      <div className="grid flex-1 grid-cols-1 md:grid-cols-[210px_1fr] xl:grid-cols-[210px_1fr_280px]">
         <aside className="hidden border-r border-border bg-card md:block">{wizard}</aside>
 
         <main className="min-w-0 overflow-y-auto">
@@ -338,7 +338,7 @@ export function ProyectoPage() {
 
         {/* Panel derecho (xl) */}
         <aside className="hidden border-l border-border bg-card xl:block">
-          <div className="sticky top-14 max-h-[calc(100vh-3.5rem)] overflow-y-auto px-3 py-4" aria-live="polite">{resultados}</div>
+          <div className="sticky top-14 max-h-[calc(100vh-3.5rem)] overflow-y-auto overflow-x-hidden p-4" aria-live="polite">{resultados}</div>
         </aside>
       </div>
 
