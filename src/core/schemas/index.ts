@@ -52,15 +52,15 @@ export const MODULOS: readonly ModuloMeta[] = [
     orden: 2,
     nombre: "Encuesta",
     descripcion: "Resultados agregados (fi) de la encuesta aplicada en Google Forms.",
-    dependencias: ["mercado"],
+    dependencias: [],
     schema: encuestaInputSchema,
   },
   {
     id: "costeo",
     orden: 3,
     nombre: "Costeo",
-    descripcion: "Materia prima, costos fijos y variables, costo unitario.",
-    dependencias: ["encuesta"],
+    descripcion: "Materia prima, mano de obra, costos fijos y costo unitario.",
+    dependencias: ["mercado"],
     schema: costeoInputSchema,
   },
   {
@@ -68,7 +68,7 @@ export const MODULOS: readonly ModuloMeta[] = [
     orden: 4,
     nombre: "Planilla",
     descripcion: "Puestos, sueldos y cargas sociales.",
-    dependencias: ["costeo"],
+    dependencias: [],
     schema: planillaInputSchema,
   },
   {
@@ -76,7 +76,7 @@ export const MODULOS: readonly ModuloMeta[] = [
     orden: 5,
     nombre: "Inversiones",
     descripcion: "Activos, capital de trabajo y gastos preoperativos.",
-    dependencias: ["planilla"],
+    dependencias: [],
     schema: inversionesInputSchema,
   },
   {
@@ -92,7 +92,7 @@ export const MODULOS: readonly ModuloMeta[] = [
     orden: 7,
     nombre: "Punto de equilibrio",
     descripcion: "Unidades y ventas necesarias para no perder ni ganar.",
-    dependencias: ["depreciacion"],
+    dependencias: ["costeo"],
     schema: puntoEquilibrioInputSchema,
   },
   {
@@ -100,7 +100,7 @@ export const MODULOS: readonly ModuloMeta[] = [
     orden: 8,
     nombre: "Proyección de ventas",
     descripcion: "Demanda e ingresos proyectados al horizonte del proyecto.",
-    dependencias: ["punto_equilibrio"],
+    dependencias: ["costeo"],
     schema: ventasInputSchema,
   },
   {
@@ -108,7 +108,7 @@ export const MODULOS: readonly ModuloMeta[] = [
     orden: 9,
     nombre: "Flujo de caja",
     descripcion: "Tres escenarios y COK → VANE, TIRE y Payback.",
-    dependencias: ["ventas"],
+    dependencias: ["ventas", "inversiones"],
     schema: flujoCajaInputSchema,
   },
   {

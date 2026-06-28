@@ -4,14 +4,18 @@ import { toast } from "sonner";
 import { data } from "@/lib/data";
 import type { Project, ProjectData } from "@/lib/types";
 import {
-  MODULOS, MODULO_POR_ID, moduloIdSchema, type MercadoInput, type ModuloId,
+  MODULOS, MODULO_POR_ID, moduloIdSchema, type CosteoInput, type MercadoInput, type ModuloId,
 } from "@/core/schemas";
-import { calcularEstados, modulosAguasAbajo, modulosCompletos, tieneDatos } from "@/lib/wizard";
+import { calcularMercado } from "@/core/calc";
+import { calcularEstados, isModuloCompleto, modulosAguasAbajo, modulosCompletos, tieneDatos } from "@/lib/wizard";
 import { TopBar } from "@/components/TopBar";
 import { SidebarWizard } from "@/features/proyecto/SidebarWizard";
 import { MercadoForm } from "@/features/mercado/MercadoForm";
 import { MercadoResultados } from "@/features/mercado/MercadoResultados";
 import { mercadoVacio, mercadoEjemploKkori } from "@/features/mercado/defaults";
+import { CosteoForm } from "@/features/costeo/CosteoForm";
+import { CosteoResultados } from "@/features/costeo/CosteoResultados";
+import { costeoVacio, costeoEjemploKkori } from "@/features/costeo/defaults";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -106,9 +110,9 @@ export function ProyectoPage() {
     navigate(`/proyectos/${id}/${mid}`);
   };
 
-  const updateMercado = (next: MercadoInput) => editarModulo("mercado", next);
-  const cargarEjemplo = () => {
-    updateMercado(mercadoEjemploKkori());
+  const cargarEjemplo = (mod: ModuloId) => {
+    if (mod === "mercado") editarModulo("mercado", mercadoEjemploKkori());
+    else if (mod === "costeo") editarModulo("costeo", costeoEjemploKkori());
     toast.success("Ejemplo K-KORI cargado");
   };
 
@@ -132,8 +136,22 @@ export function ProyectoPage() {
   }
 
   const meta = MODULO_POR_ID[activo];
-  const esMercado = activo === "mercado";
+
+  // Contexto aguas arriba para módulos que dependen de cálculos previos.
+  const demandaMensual = isModuloCompleto("mercado", projData)
+    ? calcularMercado(projData.mercado as MercadoInput).demandaPorPeriodo
+    : 0;
+
   const mercadoValue = (projData.mercado as MercadoInput | undefined) ?? mercadoVacio();
+  const costeoValue = (projData.costeo as CosteoInput | undefined) ?? costeoVacio();
+  const tieneForm = activo === "mercado" || activo === "costeo";
+
+  const formNode =
+    activo === "mercado" ? (
+      <MercadoForm value={mercadoValue} onChange={(n) => editarModulo("mercado", n)} />
+    ) : activo === "costeo" ? (
+      <CosteoForm value={costeoValue} onChange={(n) => editarModulo("costeo", n)} />
+    ) : null;
 
   const prevMod = MODULOS.find((m) => m.orden === meta.orden - 1);
   const nextMod = MODULOS.find((m) => m.orden === meta.orden + 1);
@@ -152,9 +170,11 @@ export function ProyectoPage() {
     />
   );
 
-  const resultados = esMercado ? <MercadoResultados value={mercadoValue} /> : (
-    <p className="text-sm text-muted-foreground">Los resultados en vivo de este módulo aparecerán aquí.</p>
-  );
+  const resultados =
+    activo === "mercado" ? <MercadoResultados value={mercadoValue} /> :
+    activo === "costeo" ? <CosteoResultados value={costeoValue} demandaMensual={demandaMensual} /> : (
+      <p className="text-sm text-muted-foreground">Los resultados en vivo de este módulo aparecerán aquí.</p>
+    );
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -190,7 +210,7 @@ export function ProyectoPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-lg font-semibold tracking-tight text-slate-900">{meta.nombre}</h1>
-                  {esMercado && estados.mercado.estado === "completo" && <Badge variant="success">Completo</Badge>}
+                  {estados[activo].estado === "completo" && <Badge variant="success">Completo</Badge>}
                 </div>
                 <p className="text-sm text-muted-foreground">{meta.descripcion}</p>
               </div>
@@ -209,12 +229,12 @@ export function ProyectoPage() {
               </Alert>
             )}
 
-            {esMercado ? (
+            {tieneForm ? (
               <>
                 <div className="mb-4 flex justify-end">
-                  <Button variant="outline" size="sm" onClick={cargarEjemplo}><Sparkles /> Cargar ejemplo K-KORI</Button>
+                  <Button variant="outline" size="sm" onClick={() => cargarEjemplo(activo)}><Sparkles /> Cargar ejemplo K-KORI</Button>
                 </div>
-                <MercadoForm value={mercadoValue} onChange={updateMercado} />
+                {formNode}
               </>
             ) : (
               <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border bg-card py-16 text-center">
