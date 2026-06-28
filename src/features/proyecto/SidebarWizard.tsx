@@ -13,7 +13,7 @@ interface Props {
   completos: number;
   needsReview: Set<ModuloId>;
   tableroHabilitado: boolean;
-  onVerTablero?: () => void;
+  onVerTablero: () => void;
 }
 
 function IconoEstado({ estado, activo }: { estado: ModuloEstado["estado"]; activo: boolean }) {
@@ -81,22 +81,9 @@ export function SidebarWizard({ estados, activo, onSelect, completos, needsRevie
       </ol>
 
       <div className="border-t border-border p-3">
-        {tableroHabilitado ? (
-          <Button variant="default" className="w-full" onClick={onVerTablero}>
-            <BarChart3 /> Ver tablero
-          </Button>
-        ) : (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="block">
-                <Button variant="secondary" className="w-full" disabled>
-                  <BarChart3 /> Ver tablero
-                </Button>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>Completa hasta el flujo de caja para ver el tablero.</TooltipContent>
-          </Tooltip>
-        )}
+        <Button variant={tableroHabilitado ? "default" : "secondary"} className="w-full" onClick={onVerTablero}>
+          <BarChart3 /> Ver tablero
+        </Button>
       </div>
     </nav>
   );

@@ -69,3 +69,19 @@
 .tabular {
   font-variant-numeric: tabular-nums;
 }
+
+/* Impresión / Exportar PDF: oculta controles y deja el tablero limpio */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+  main {
+    padding: 0 !important;
+  }
+  section {
+    break-inside: avoid;
+  }
+}

@@ -167,6 +167,7 @@ export function ProyectoPage() {
       completos={completos}
       needsReview={needsReview}
       tableroHabilitado={estados.flujo_caja.estado === "completo"}
+      onVerTablero={() => navigate(`/proyectos/${id}/tablero`)}
     />
   );
 
