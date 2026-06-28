@@ -44,6 +44,18 @@ export function contextoCapitalTrabajo(data: ProjectData): CapitalTrabajo & { li
   };
 }
 
+/** Datos heredados que necesita la Proyección de ventas (de Mercado y Costeo). */
+export function contextoVentas(data: ProjectData): {
+  demandaMesBase: number; precioVenta: number; cvu: number; cfu: number; listo: boolean;
+} {
+  const costeo = data.costeo as CosteoInput | undefined;
+  const mercadoOk = mercadoOwnSchema.safeParse(data.mercado).success;
+  const demandaMesBase = calcularMercado(construirMercado(data)).demandaPorPeriodo;
+  if (!costeo || !mercadoOk) return { demandaMesBase, precioVenta: 0, cvu: 0, cfu: 0, listo: false };
+  const c = calcularCosteo(costeo, { demandaMensual: demandaMesBase });
+  return { demandaMesBase, precioVenta: c.valorVenta, cvu: c.mpUnitario, cfu: c.costoFijoUnitario, listo: true };
+}
+
 /** Datos heredados que necesita el Punto de equilibrio (de Costeo y Mercado). */
 export function contextoPuntoEquilibrio(data: ProjectData): {
   cvu: number; pv: number; cft: number; demandaMensual: number; listo: boolean;

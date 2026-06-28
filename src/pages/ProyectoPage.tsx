@@ -6,10 +6,12 @@ import type { Project, ProjectData } from "@/lib/types";
 import {
   MODULOS, MODULO_POR_ID, moduloIdSchema,
   type CosteoInput, type DepreciacionInput, type EncuestaInput, type InversionesInput,
-  type MercadoOwn, type ModuloId, type PlanillaInput,
+  type MercadoOwn, type ModuloId, type PlanillaInput, type ProyeccionVentasInput,
 } from "@/core/schemas";
 import { calcularCPC, calcularMercado, derivarEncuesta } from "@/core/calc";
-import { construirDepreciacion, construirMercado, contextoCapitalTrabajo, contextoPuntoEquilibrio } from "@/lib/derive";
+import {
+  construirDepreciacion, construirMercado, contextoCapitalTrabajo, contextoPuntoEquilibrio, contextoVentas,
+} from "@/lib/derive";
 import { calcularEstados, isModuloCompleto, modulosAfectados, modulosCompletos, tieneDatos } from "@/lib/wizard";
 import { TopBar } from "@/components/TopBar";
 import { SidebarWizard } from "@/features/proyecto/SidebarWizard";
@@ -33,6 +35,9 @@ import { DepreciacionResultados } from "@/features/depreciacion/DepreciacionResu
 import { depreciacionVacia, depreciacionEjemploKkori } from "@/features/depreciacion/defaults";
 import { PuntoEquilibrioPanel } from "@/features/puntoEquilibrio/PuntoEquilibrioPanel";
 import { PuntoEquilibrioGrafico } from "@/features/puntoEquilibrio/PuntoEquilibrioGrafico";
+import { ProyeccionVentasForm } from "@/features/ventas/ProyeccionVentasForm";
+import { ProyeccionVentasResultados } from "@/features/ventas/ProyeccionVentasResultados";
+import { ventasVacia, ventasEjemploKkori } from "@/features/ventas/defaults";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -134,6 +139,7 @@ export function ProyectoPage() {
     else if (mod === "planilla") editarModulo("planilla", planillaEjemploKkori());
     else if (mod === "inversiones") editarModulo("inversiones", inversionesEjemploKkori());
     else if (mod === "depreciacion") editarModulo("depreciacion", depreciacionEjemploKkori());
+    else if (mod === "ventas") editarModulo("ventas", ventasEjemploKkori());
     toast.success("Ejemplo K-KORI cargado");
   };
 
@@ -173,8 +179,10 @@ export function ProyectoPage() {
   const depreciacionValue = (projData.depreciacion as DepreciacionInput | undefined) ?? depreciacionVacia();
   const depHerencia = construirDepreciacion(projData);
   const ctxPE = contextoPuntoEquilibrio(projData);
-  const tieneForm = ["encuesta", "mercado", "costeo", "planilla", "inversiones", "depreciacion", "punto_equilibrio"].includes(activo);
-  const tieneEjemplo = ["encuesta", "mercado", "costeo", "planilla", "inversiones", "depreciacion"].includes(activo);
+  const ventasValue = (projData.ventas as ProyeccionVentasInput | undefined) ?? ventasVacia();
+  const ctxVentas = contextoVentas(projData);
+  const tieneForm = ["encuesta", "mercado", "costeo", "planilla", "inversiones", "depreciacion", "punto_equilibrio", "ventas"].includes(activo);
+  const tieneEjemplo = ["encuesta", "mercado", "costeo", "planilla", "inversiones", "depreciacion", "ventas"].includes(activo);
 
   const formNode =
     activo === "encuesta" ? (
@@ -199,6 +207,8 @@ export function ProyectoPage() {
       <DepreciacionForm value={depreciacionValue} onChange={(n) => editarModulo("depreciacion", n)} activos={depHerencia.activos} gastos={depHerencia.gastos} listo={depHerencia.listo} onIrAInversiones={() => selectModulo("inversiones")} />
     ) : activo === "punto_equilibrio" ? (
       <PuntoEquilibrioPanel ctx={ctxPE} onIrACosteo={() => selectModulo("costeo")} />
+    ) : activo === "ventas" ? (
+      <ProyeccionVentasForm value={ventasValue} onChange={(n) => editarModulo("ventas", n)} ctx={ctxVentas} onIrACosteo={() => selectModulo("costeo")} />
     ) : null;
 
   const prevMod = MODULOS.find((m) => m.orden === meta.orden - 1);
@@ -226,7 +236,8 @@ export function ProyectoPage() {
     activo === "planilla" ? <PlanillaResultados value={planillaValue} /> :
     activo === "inversiones" ? <InversionesResultados value={inversionesValue} capital={capitalTrabajo} /> :
     activo === "depreciacion" ? <DepreciacionResultados activos={depHerencia.activos} gastos={depHerencia.gastos} horizonte={depreciacionValue.horizonteAnios} /> :
-    activo === "punto_equilibrio" ? <PuntoEquilibrioGrafico ctx={ctxPE} /> : (
+    activo === "punto_equilibrio" ? <PuntoEquilibrioGrafico ctx={ctxPE} /> :
+    activo === "ventas" ? <ProyeccionVentasResultados value={ventasValue} ctx={ctxVentas} /> : (
       <p className="text-sm text-muted-foreground">Los resultados en vivo de este módulo aparecerán aquí.</p>
     );
 

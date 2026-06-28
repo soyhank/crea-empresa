@@ -26,6 +26,8 @@ const COMPLETION_OVERRIDES: Partial<Record<ModuloId, (data: ProjectData) => bool
   depreciacion: (data) => isModuloCompleto("inversiones", data),
   // Punto de equilibrio se deriva por completo de Costeo.
   punto_equilibrio: (data) => isModuloCompleto("costeo", data),
+  // Ventas: se desbloquea/deriva con Costeo (usa crecimiento por defecto).
+  ventas: (data) => isModuloCompleto("costeo", data),
 };
 
 export interface ModuloEstado {

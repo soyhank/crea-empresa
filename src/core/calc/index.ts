@@ -5,3 +5,4 @@ export * from "./planilla";
 export * from "./inversiones";
 export * from "./depreciacion";
 export * from "./puntoEquilibrio";
+export * from "./proyeccionVentas";

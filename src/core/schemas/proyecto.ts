@@ -6,7 +6,7 @@ import { planillaInputSchema } from "./planilla";
 import { inversionesInputSchema } from "./inversiones";
 import { depreciacionInputSchema } from "./depreciacion";
 import { puntoEquilibrioInputSchema } from "./puntoEquilibrio";
-import { ventasInputSchema } from "./ventas";
+import { ventasInputSchema } from "./proyeccionVentas";
 import { flujoCajaInputSchema } from "./flujoCaja";
 import { estadosFinancierosInputSchema } from "./estadosFinancieros";
 
