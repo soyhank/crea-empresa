@@ -35,10 +35,12 @@ export function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/" element={<RequireAuth><DashboardPage /></RequireAuth>} />
+      <Route path="/" element={<Navigate to="/proyectos" replace />} />
+      <Route path="/proyectos" element={<RequireAuth><DashboardPage /></RequireAuth>} />
       <Route path="/proyecto/:id" element={<RequireAuth><ProyectoPage /></RequireAuth>} />
-      <Route path="/admin" element={<RequireAuth adminOnly><AdminPage /></RequireAuth>} />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="/admin" element={<Navigate to="/admin/usuarios" replace />} />
+      <Route path="/admin/usuarios" element={<RequireAuth adminOnly><AdminPage /></RequireAuth>} />
+      <Route path="*" element={<Navigate to="/proyectos" replace />} />
     </Routes>
   );
 }

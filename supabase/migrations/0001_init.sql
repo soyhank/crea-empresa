@@ -1,23 +1,26 @@
 -- =============================================================================
 -- Crea-Empresa · Esquema inicial
 -- La BD guarda SOLO inputs. Todo valor financiero es derivado en /core/calc.
--- Modelo de usuarios: SIN auto-registro. El admin crea cuentas (service_role).
+-- Identidad: login por NOMBRE DE EMPRESARIO (sin email visible). El email es
+-- sintético (slug@dominio) y se deriva del nombre con la misma normalización
+-- en cliente y Edge Function. SIN auto-registro: el admin crea las cuentas.
 -- =============================================================================
 
 -- ----------------------------------------------------------------------------
--- profiles: 1-a-1 con auth.users, guarda rol y estado.
+-- profiles: 1-a-1 con auth.users. `username` = slug estable; `display_name` =
+-- nombre tal cual para mostrar.
 -- ----------------------------------------------------------------------------
 create table if not exists public.profiles (
-  id          uuid primary key references auth.users (id) on delete cascade,
-  email       text not null,
-  nombre      text,
-  role        text not null default 'user' check (role in ('admin', 'user')),
-  activo      boolean not null default true,
-  created_at  timestamptz not null default now()
+  id            uuid primary key references auth.users (id) on delete cascade,
+  username      text unique not null,
+  display_name  text not null,
+  role          text not null default 'user' check (role in ('user', 'admin')),
+  activo        boolean not null default true,
+  created_at    timestamptz not null default now()
 );
 
 -- ----------------------------------------------------------------------------
--- proyectos: pertenecen a un usuario (alumno).
+-- proyectos: pertenecen a un usuario (empresario).
 -- ----------------------------------------------------------------------------
 create table if not exists public.proyectos (
   id          uuid primary key default gen_random_uuid(),
@@ -83,23 +86,25 @@ create trigger trg_modulos_touch before update on public.proyecto_modulos
   for each row execute function public.touch_updated_at();
 
 -- =============================================================================
--- RLS: cada usuario solo ve/escribe lo suyo; el admin ve todo.
+-- RLS: cada usuario solo ve/escribe lo suyo; el admin ve todo. La escritura de
+-- profiles ocurre solo vía Edge Functions con service_role (que omiten RLS).
 -- =============================================================================
 alter table public.profiles         enable row level security;
 alter table public.proyectos        enable row level security;
 alter table public.proyecto_modulos enable row level security;
 
--- profiles -------------------------------------------------------------------
+-- profiles: un user lee su fila; el admin lee todas.
 drop policy if exists profiles_select_self_or_admin on public.profiles;
 create policy profiles_select_self_or_admin on public.profiles
   for select using (id = auth.uid() or public.is_admin());
 
-drop policy if exists profiles_update_self_or_admin on public.profiles;
-create policy profiles_update_self_or_admin on public.profiles
-  for update using (id = auth.uid() or public.is_admin())
-  with check (id = auth.uid() or public.is_admin());
+-- (Opcional) el admin puede actualizar perfiles desde el cliente; la creación y
+-- la gestión sensible se hacen por Edge Function con service_role.
+drop policy if exists profiles_update_admin on public.profiles;
+create policy profiles_update_admin on public.profiles
+  for update using (public.is_admin()) with check (public.is_admin());
 
--- proyectos ------------------------------------------------------------------
+-- proyectos
 drop policy if exists proyectos_select on public.proyectos;
 create policy proyectos_select on public.proyectos
   for select using (user_id = auth.uid() or public.is_admin());
@@ -116,7 +121,7 @@ drop policy if exists proyectos_delete on public.proyectos;
 create policy proyectos_delete on public.proyectos
   for delete using (user_id = auth.uid());
 
--- proyecto_modulos (a través del dueño del proyecto) -------------------------
+-- proyecto_modulos (a través del dueño del proyecto)
 drop policy if exists modulos_select on public.proyecto_modulos;
 create policy modulos_select on public.proyecto_modulos
   for select using (
@@ -135,7 +140,8 @@ create policy modulos_write on public.proyecto_modulos
   );
 
 -- =============================================================================
--- Bootstrap: tras crear el primer usuario en Auth, promuévelo a admin con:
---   update public.profiles set role = 'admin' where email = 'tu-admin@correo.com';
--- (El endpoint /api/createUser inserta el profile automáticamente.)
+-- Bootstrap del primer admin: la Edge Function `createUser` permite crear el
+-- primer usuario como admin si aún no existe ninguno. Alternativamente, tras
+-- crear un usuario, promuévelo manualmente:
+--   update public.profiles set role = 'admin' where username = 'tu-slug';
 -- =============================================================================

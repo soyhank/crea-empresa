@@ -52,12 +52,13 @@ pnpm build      # typecheck + build de producción
 ### Modo demo (sin Supabase)
 
 Si **no** hay variables de entorno de Supabase, la app corre en **modo demo**
-con datos en `localStorage` y cuentas sembradas:
+con datos en `localStorage` y cuentas sembradas. El login es por **nombre de
+empresario** (no email):
 
-| Rol           | Correo            | Contraseña |
-| ------------- | ----------------- | ---------- |
-| Administrador | `admin@demo.com`  | `admin123` |
-| Alumno        | `alumno@demo.com` | `alumno123`|
+| Rol           | Nombre de empresario | Contraseña  |
+| ------------- | -------------------- | ----------- |
+| Administrador | `Administrador`      | `admin123`  |
+| Empresario    | `Alumno Demo`        | `alumno123` |
 
 Esto permite ejecutar y desplegar la app antes de conectar Supabase.
 
@@ -65,23 +66,32 @@ Esto permite ejecutar y desplegar la app antes de conectar Supabase.
 
 1. Crea un proyecto en [supabase.com](https://supabase.com).
 2. En el **SQL Editor**, ejecuta `supabase/migrations/0001_init.sql`.
-3. Copia `.env.example` a `.env` y completa:
-   - `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (cliente)
-   - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (solo servidor, para `/api/admin`)
-4. Crea el **primer administrador** (bootstrap): con la app desplegada,
-   `POST /api/admin` con `{ "action": "create", "email": "...", "password": "..." }`
-   crea el primer usuario como `admin` (solo permitido si aún no existe ninguno).
-   También puedes promover manualmente:
-   `update public.profiles set role='admin' where email='tu-admin@correo.com';`
+3. Despliega las **Edge Functions** (gestión de usuarios con `service_role`):
+   ```bash
+   supabase link --project-ref TU_REF
+   supabase functions deploy createUser resetPassword setActive setRole
+   ```
+   `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` se inyectan automáticamente en
+   las funciones; no se exponen jamás al cliente.
+4. Copia `.env.example` a `.env` y completa solo lo del cliente:
+   `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (también en Vercel → _Project
+   Settings → Environment Variables_).
+5. Crea el **primer administrador** (bootstrap): invoca la función `createUser`
+   con `{ "display_name": "Tu Nombre", "password": "..." }`. Si aún no existe
+   ningún admin, ese primer usuario se crea como `admin`. También puedes
+   promover manualmente: `update public.profiles set role='admin' where username='tu-slug';`
 
-En Vercel, define las 4 variables de entorno en _Project Settings → Environment
-Variables_ (las `SUPABASE_*` sin prefijo `VITE_` quedan solo en el servidor).
+> Identidad: el usuario inicia sesión con su **nombre de empresario**. Internamente
+> el nombre se normaliza a un slug y a un email sintético invisible
+> (`src/core/auth/identity.ts`, copiado en `supabase/functions/_shared/identity.ts`;
+> un test garantiza que no divergan).
 
 ## Modelo de usuarios
 
-- **Sin auto-registro.** Solo el admin crea cuentas (vía `/api/admin` con la
-  `service_role` key). Roles: `admin` (gestiona usuarios, ve todo) y `user`
-  (alumno: solo sus proyectos). RLS estricto: `auth.uid() = user_id`.
+- **Sin auto-registro.** Solo el admin crea cuentas (vía Edge Functions con la
+  `service_role` key). Login por **nombre de empresario** (sin email visible).
+  Roles: `admin` (gestiona usuarios en `/admin/usuarios`, ve todo) y `user`
+  (empresario: solo sus proyectos). RLS estricto: `auth.uid() = user_id`.
 
 ## Estado (Sprint 1)
 
@@ -92,8 +102,11 @@ Entregado:
 - ✅ Motor `core/calc/mercado.ts` + **tests verdes** que reproducen K-KORI:
   Universo 1 255 300 · MP 435 840,16 · MD 232 675,09 · ME 172 082,62 ·
   MO 17 208,26 · CPC 1,877604 · Demanda 32 310,30/año · 2 692,53/mes.
-- ✅ SQL Supabase + RLS + endpoint `createUser` (con bootstrap del primer admin).
-- ✅ Login (sin signup) + guard de rutas por rol + vista admin de usuarios.
+- ✅ SQL Supabase + RLS + Edge Functions (`createUser`/`resetPassword`/`setActive`/
+  `setRole`) con bootstrap del primer admin.
+- ✅ Login por **nombre de empresario** (sin signup, sin email visible) + guard de
+  rutas por rol + vista admin `/admin/usuarios` con CRUD, slug en vivo y
+  contraseña temporal copiable.
 - ✅ Shell de UI de 3 paneles + sidebar-wizard con estados + módulo **Mercado**
   end-to-end con cálculo en vivo y autoguardado.
 

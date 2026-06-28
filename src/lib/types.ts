@@ -4,8 +4,10 @@ export type Rol = "admin" | "user";
 
 export interface AppUser {
   id: string;
-  email: string;
-  nombre?: string | null;
+  /** Slug estable (no visible salvo en la tabla admin). */
+  username: string;
+  /** Nombre de empresario tal cual, para mostrar. */
+  displayName: string;
   role: Rol;
   activo: boolean;
   createdAt?: string;

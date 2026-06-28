@@ -1,19 +1,29 @@
 import type { ModuloId } from "@/core/schemas";
+import { normalizeUsername, usernameToEmail } from "@/core/auth/identity";
 import { isSupabaseConfigured, supabase } from "./supabase";
-import type { AppUser, Project, ProjectModules } from "./types";
+import type { AppUser, Project, ProjectModules, Rol } from "./types";
+
+export interface NuevoUsuario {
+  displayName: string;
+  password: string;
+  role: Rol;
+}
 
 /**
  * Capa de datos con una interfaz única para la UI. Dos implementaciones:
- *  - Supabase (cuando hay credenciales): Auth + Postgres + RLS + /api/admin.
- *  - Demo (sin credenciales): localStorage con cuentas sembradas, para que la
- *    app corra y se despliegue antes de conectar Supabase.
+ *  - Supabase (con credenciales): Auth + Postgres + RLS + Edge Functions.
+ *  - Demo (sin credenciales): localStorage con cuentas sembradas.
+ *
+ * Identidad: el usuario inicia sesión con su NOMBRE DE EMPRESARIO; nunca ve un
+ * email. Internamente el nombre → slug → email sintético (ver core/auth/identity).
  */
 export interface DataProvider {
   readonly modo: "supabase" | "demo";
   // Auth
   currentUser(): Promise<AppUser | null>;
   onAuthChange(cb: (u: AppUser | null) => void): () => void;
-  signIn(email: string, password: string): Promise<AppUser>;
+  /** `nombre` = nombre de empresario (display name). */
+  signIn(nombre: string, password: string): Promise<AppUser>;
   signOut(): Promise<void>;
   // Proyectos
   listProjects(): Promise<Project[]>;
@@ -24,7 +34,13 @@ export interface DataProvider {
   loadModules(projectId: string): Promise<ProjectModules>;
   saveModule(projectId: string, modulo: ModuloId, data: unknown, completo: boolean): Promise<void>;
   // Admin
-  adminAction(action: string, payload: Record<string, unknown>): Promise<{ users?: AppUser[] }>;
+  listUsers(): Promise<AppUser[]>;
+  createUser(input: NuevoUsuario): Promise<{ slug: string }>;
+  resetPassword(userId: string, password: string): Promise<void>;
+  setActive(userId: string, activo: boolean): Promise<void>;
+  setRole(userId: string, role: Rol): Promise<void>;
+  /** true si el slug está disponible. */
+  checkUsername(slug: string): Promise<boolean>;
 }
 
 const nowIso = () => new Date().toISOString();
@@ -37,11 +53,13 @@ interface DemoUser extends AppUser {
   password: string;
 }
 
+// v2: nuevo modelo de identidad (username/display_name). Versionar invalida el
+// localStorage del esquema anterior (email/nombre) sin romper a quien ya entró.
 const K = {
-  users: "ce_demo_users",
-  session: "ce_demo_session",
-  projects: "ce_demo_projects",
-  modules: "ce_demo_modules",
+  users: "ce_demo_users_v2",
+  session: "ce_demo_session_v2",
+  projects: "ce_demo_projects_v2",
+  modules: "ce_demo_modules_v2",
 };
 
 function read<T>(key: string, fallback: T): T {
@@ -59,8 +77,8 @@ function write(key: string, value: unknown) {
 function seedDemo() {
   if (read<DemoUser[] | null>(K.users, null)) return;
   const seed: DemoUser[] = [
-    { id: uid(), email: "admin@demo.com", nombre: "Administrador", role: "admin", activo: true, password: "admin123", createdAt: nowIso() },
-    { id: uid(), email: "alumno@demo.com", nombre: "Alumno Demo", role: "user", activo: true, password: "alumno123", createdAt: nowIso() },
+    { id: uid(), username: "administrador", displayName: "Administrador", role: "admin", activo: true, password: "admin123", createdAt: nowIso() },
+    { id: uid(), username: "alumno-demo", displayName: "Alumno Demo", role: "user", activo: true, password: "alumno123", createdAt: nowIso() },
   ];
   write(K.users, seed);
 }
@@ -83,7 +101,7 @@ class DemoProvider implements DataProvider {
     const id = read<string | null>(K.session, null);
     if (!id) return null;
     const u = read<DemoUser[]>(K.users, []).find((x) => x.id === id);
-    return u ? this.strip(u) : null;
+    return u && u.activo ? this.strip(u) : null;
   }
 
   onAuthChange(cb: (u: AppUser | null) => void) {
@@ -94,11 +112,10 @@ class DemoProvider implements DataProvider {
     this.listeners.forEach((l) => l(u));
   }
 
-  async signIn(email: string, password: string): Promise<AppUser> {
-    const u = read<DemoUser[]>(K.users, []).find(
-      (x) => x.email.toLowerCase() === email.trim().toLowerCase(),
-    );
-    if (!u || u.password !== password) throw new Error("Credenciales inválidas");
+  async signIn(nombre: string, password: string): Promise<AppUser> {
+    const slug = normalizeUsername(nombre);
+    const u = read<DemoUser[]>(K.users, []).find((x) => x.username === slug);
+    if (!u || u.password !== password) throw new Error("Usuario o contraseña incorrectos");
     if (!u.activo) throw new Error("Tu cuenta está desactivada. Contacta al administrador.");
     write(K.session, u.id);
     const app = this.strip(u);
@@ -127,14 +144,12 @@ class DemoProvider implements DataProvider {
   async createProject(nombre: string, descripcion?: string): Promise<Project> {
     const u = await this.requireUser();
     const p: Project = { id: uid(), userId: u.id, nombre, descripcion: descripcion ?? null, createdAt: nowIso(), updatedAt: nowIso() };
-    const all = read<Project[]>(K.projects, []);
-    write(K.projects, [...all, p]);
+    write(K.projects, [...read<Project[]>(K.projects, []), p]);
     return p;
   }
 
   async deleteProject(id: string) {
-    const all = read<Project[]>(K.projects, []).filter((p) => p.id !== id);
-    write(K.projects, all);
+    write(K.projects, read<Project[]>(K.projects, []).filter((p) => p.id !== id));
     const mods = read<Record<string, ProjectModules>>(K.modules, {});
     delete mods[id];
     write(K.modules, mods);
@@ -149,8 +164,7 @@ class DemoProvider implements DataProvider {
   }
 
   async loadModules(projectId: string): Promise<ProjectModules> {
-    const mods = read<Record<string, ProjectModules>>(K.modules, {});
-    return mods[projectId] ?? {};
+    return read<Record<string, ProjectModules>>(K.modules, {})[projectId] ?? {};
   }
 
   async saveModule(projectId: string, modulo: ModuloId, data: unknown, completo: boolean) {
@@ -167,49 +181,52 @@ class DemoProvider implements DataProvider {
     }
   }
 
-  async adminAction(action: string, payload: Record<string, unknown>) {
+  // ----- Admin -----
+  private async requireAdmin(): Promise<void> {
+    const u = await this.currentUser();
+    if (u?.role !== "admin") throw new Error("Solo un administrador puede gestionar usuarios");
+  }
+
+  async listUsers(): Promise<AppUser[]> {
+    await this.requireAdmin();
+    return read<DemoUser[]>(K.users, []).map((u) => this.strip(u));
+  }
+
+  async checkUsername(slug: string): Promise<boolean> {
+    return !read<DemoUser[]>(K.users, []).some((u) => u.username === slug);
+  }
+
+  async createUser(input: NuevoUsuario): Promise<{ slug: string }> {
+    await this.requireAdmin();
+    const slug = normalizeUsername(input.displayName);
     const users = read<DemoUser[]>(K.users, []);
-    switch (action) {
-      case "list":
-        return { users: users.map((u) => this.strip(u)) };
-      case "create": {
-        const email = String(payload.email ?? "").trim().toLowerCase();
-        if (users.some((u) => u.email === email)) throw new Error("Ese email ya existe");
-        const nu: DemoUser = {
-          id: uid(),
-          email,
-          nombre: (payload.nombre as string) ?? null,
-          role: payload.role === "admin" ? "admin" : "user",
-          activo: true,
-          password: String(payload.password ?? "123456"),
-          createdAt: nowIso(),
-        };
-        write(K.users, [...users, nu]);
-        return { users: [...users, nu].map((u) => this.strip(u)) };
-      }
-      case "deactivate":
-      case "activate": {
-        const id = String(payload.userId);
-        const next = users.map((u) => (u.id === id ? { ...u, activo: action === "activate" } : u));
-        write(K.users, next);
-        return { users: next.map((u) => this.strip(u)) };
-      }
-      case "setRole": {
-        const id = String(payload.userId);
-        const role = payload.role === "admin" ? "admin" : "user";
-        const next = users.map((u) => (u.id === id ? { ...u, role } : u));
-        write(K.users, next as DemoUser[]);
-        return { users: next.map((u) => this.strip(u as DemoUser)) };
-      }
-      case "resetPassword": {
-        const id = String(payload.userId);
-        const next = users.map((u) => (u.id === id ? { ...u, password: String(payload.password) } : u));
-        write(K.users, next);
-        return {};
-      }
-      default:
-        throw new Error("Acción no soportada");
-    }
+    if (users.some((u) => u.username === slug)) throw new Error(`El usuario «${slug}» ya existe`);
+    const nu: DemoUser = {
+      id: uid(),
+      username: slug,
+      displayName: input.displayName.trim(),
+      role: input.role,
+      activo: true,
+      password: input.password,
+      createdAt: nowIso(),
+    };
+    write(K.users, [...users, nu]);
+    return { slug };
+  }
+
+  async resetPassword(userId: string, password: string) {
+    await this.requireAdmin();
+    write(K.users, read<DemoUser[]>(K.users, []).map((u) => (u.id === userId ? { ...u, password } : u)));
+  }
+
+  async setActive(userId: string, activo: boolean) {
+    await this.requireAdmin();
+    write(K.users, read<DemoUser[]>(K.users, []).map((u) => (u.id === userId ? { ...u, activo } : u)));
+  }
+
+  async setRole(userId: string, role: Rol) {
+    await this.requireAdmin();
+    write(K.users, read<DemoUser[]>(K.users, []).map((u) => (u.id === userId ? { ...u, role } : u)));
   }
 }
 
@@ -220,37 +237,42 @@ class SupabaseProvider implements DataProvider {
   readonly modo = "supabase" as const;
   private sb = supabase!;
 
-  private async profileOf(id: string, email: string): Promise<AppUser> {
+  private async profileOf(id: string): Promise<AppUser | null> {
     const { data } = await this.sb
       .from("profiles")
-      .select("id, email, nombre, role, activo, created_at")
+      .select("id, username, display_name, role, activo, created_at")
       .eq("id", id)
       .single();
-    if (data) {
-      return { id: data.id, email: data.email, nombre: data.nombre, role: data.role, activo: data.activo, createdAt: data.created_at };
-    }
-    return { id, email, role: "user", activo: true };
+    if (!data) return null;
+    return {
+      id: data.id,
+      username: data.username,
+      displayName: data.display_name,
+      role: data.role,
+      activo: data.activo,
+      createdAt: data.created_at,
+    };
   }
 
   async currentUser(): Promise<AppUser | null> {
     const { data } = await this.sb.auth.getUser();
     if (!data.user) return null;
-    return this.profileOf(data.user.id, data.user.email ?? "");
+    return this.profileOf(data.user.id);
   }
 
   onAuthChange(cb: (u: AppUser | null) => void) {
     const { data } = this.sb.auth.onAuthStateChange(async (_e, session) => {
-      if (session?.user) cb(await this.profileOf(session.user.id, session.user.email ?? ""));
-      else cb(null);
+      cb(session?.user ? await this.profileOf(session.user.id) : null);
     });
     return () => data.subscription.unsubscribe();
   }
 
-  async signIn(email: string, password: string): Promise<AppUser> {
-    const { data, error } = await this.sb.auth.signInWithPassword({ email: email.trim(), password });
-    if (error || !data.user) throw new Error(error?.message ?? "Credenciales inválidas");
-    const profile = await this.profileOf(data.user.id, data.user.email ?? "");
-    if (!profile.activo) {
+  async signIn(nombre: string, password: string): Promise<AppUser> {
+    const email = usernameToEmail(nombre);
+    const { data, error } = await this.sb.auth.signInWithPassword({ email, password });
+    if (error || !data.user) throw new Error("Usuario o contraseña incorrectos");
+    const profile = await this.profileOf(data.user.id);
+    if (!profile || !profile.activo) {
       await this.sb.auth.signOut();
       throw new Error("Tu cuenta está desactivada. Contacta al administrador.");
     }
@@ -319,17 +341,64 @@ class SupabaseProvider implements DataProvider {
     if (error) throw new Error(error.message);
   }
 
-  async adminAction(action: string, payload: Record<string, unknown>) {
-    const { data: sess } = await this.sb.auth.getSession();
-    const token = sess.session?.access_token ?? "";
-    const res = await fetch("/api/admin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ action, ...payload }),
+  // ----- Admin (Edge Functions con service_role + lectura por RLS) -----
+  async listUsers(): Promise<AppUser[]> {
+    const { data, error } = await this.sb
+      .from("profiles")
+      .select("id, username, display_name, role, activo, created_at")
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((d) => ({
+      id: d.id, username: d.username, displayName: d.display_name, role: d.role, activo: d.activo, createdAt: d.created_at,
+    }));
+  }
+
+  async checkUsername(slug: string): Promise<boolean> {
+    const { count } = await this.sb
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("username", slug);
+    return (count ?? 0) === 0;
+  }
+
+  private async invoke(fn: string, body: Record<string, unknown>) {
+    const { data, error } = await this.sb.functions.invoke(fn, { body });
+    if (error) {
+      // Intenta extraer el mensaje del cuerpo de la respuesta de la función.
+      const ctx = (error as { context?: Response }).context;
+      if (ctx && typeof ctx.json === "function") {
+        try {
+          const j = await ctx.json();
+          if (j?.error) throw new Error(j.error);
+        } catch {
+          /* usa el mensaje genérico */
+        }
+      }
+      throw new Error(error.message ?? "Error en la función");
+    }
+    if (data?.error) throw new Error(data.error);
+    return data;
+  }
+
+  async createUser(input: NuevoUsuario): Promise<{ slug: string }> {
+    const data = await this.invoke("createUser", {
+      display_name: input.displayName,
+      password: input.password,
+      role: input.role,
     });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error ?? "Error del servidor");
-    return json;
+    return { slug: data?.slug ?? normalizeUsername(input.displayName) };
+  }
+
+  async resetPassword(userId: string, password: string) {
+    await this.invoke("resetPassword", { user_id: userId, password });
+  }
+
+  async setActive(userId: string, activo: boolean) {
+    await this.invoke("setActive", { user_id: userId, activo });
+  }
+
+  async setRole(userId: string, role: Rol) {
+    await this.invoke("setRole", { user_id: userId, role });
   }
 }
 

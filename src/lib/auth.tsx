@@ -6,7 +6,8 @@ interface AuthState {
   user: AppUser | null;
   loading: boolean;
   modo: "supabase" | "demo";
-  signIn: (email: string, password: string) => Promise<void>;
+  /** `nombre` = nombre de empresario (no email). */
+  signIn: (nombre: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -31,8 +32,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const signIn = React.useCallback(async (email: string, password: string) => {
-    const u = await data.signIn(email, password);
+  const signIn = React.useCallback(async (nombre: string, password: string) => {
+    const u = await data.signIn(nombre, password);
     setUser(u);
   }, []);
 

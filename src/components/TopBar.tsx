@@ -46,15 +46,15 @@ export function TopBar({ leftSlot, centerSlot }: TopBarProps) {
       <div className="flex items-center gap-2">
         {user?.role === "admin" && (
           <Button asChild variant="ghost" size="sm">
-            <Link to="/admin">
-              <ShieldCheck /> <span className="hidden sm:inline">Admin</span>
+            <Link to="/admin/usuarios">
+              <ShieldCheck /> <span className="hidden sm:inline">Usuarios</span>
             </Link>
           </Button>
         )}
         {user && (
           <>
             <div className="hidden text-right sm:block">
-              <p className="text-xs font-medium leading-tight text-slate-900">{user.nombre ?? user.email}</p>
+              <p className="text-xs font-medium leading-tight text-slate-900">{user.displayName}</p>
               <Badge variant={user.role === "admin" ? "default" : "muted"} className="text-[10px]">
                 {user.role === "admin" ? "Administrador" : "Alumno"}
               </Badge>

@@ -41,7 +41,7 @@ export function ProyectoPage() {
       if (!active) return;
       if (!p) {
         toast.error("Proyecto no encontrado");
-        navigate("/", { replace: true });
+        navigate("/proyectos", { replace: true });
         return;
       }
       const mods = await data.loadModules(id);
@@ -149,7 +149,7 @@ export function ProyectoPage() {
       <TopBar
         leftSlot={
           <Button asChild variant="ghost" size="icon" className="size-8">
-            <Link to="/" aria-label="Volver al inicio"><ArrowLeft /></Link>
+            <Link to="/proyectos" aria-label="Volver a proyectos"><ArrowLeft /></Link>
           </Button>
         }
         centerSlot={project.nombre}
