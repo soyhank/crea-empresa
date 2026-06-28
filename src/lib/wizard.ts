@@ -55,3 +55,9 @@ export function porcentajeAvance(data: ProjectData): number {
 }
 
 export const TOTAL_MODULOS = MODULOS.length;
+
+/** Módulos posteriores (por orden de dependencia) al indicado. */
+export function modulosAguasAbajo(id: ModuloId): ModuloId[] {
+  const orden = MODULO_POR_ID[id].orden;
+  return MODULOS.filter((m) => m.orden > orden).map((m) => m.id);
+}

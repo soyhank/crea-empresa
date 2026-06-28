@@ -3,7 +3,8 @@ import type { MercadoInput } from "../schemas/mercado";
 /**
  * Caso de referencia "K-KORI" (bebida) extraído del Excel original.
  * Fuente de los valores de prueba (TDD). Hojas: DISTRITAL, ENCUESTA,
- * PROYECCION DE DEMANDA.
+ * PROYECCION DE DEMANDA. Los factores se expresan como fracciones exactas
+ * (fi/total) para reproducir el Excel sin arrastre de redondeo.
  */
 export const kkoriMercadoInput: MercadoInput = {
   // Hoja DISTRITAL: población por distrito (CPI 2025).
@@ -12,26 +13,15 @@ export const kkoriMercadoInput: MercadoInput = {
     { id: "olivos", nombre: "Los Olivos", poblacion: 387300 },
     { id: "independencia", nombre: "Independencia", poblacion: 250300 },
   ],
-  // Segmentación: 62% rango 18–50 años × 56% NSE B+C.
-  filtrosSegmentacion: [
-    { id: "edad", etiqueta: "18–50 años", fraccion: 0.62 },
-    { id: "nse", etiqueta: "NSE B + C", fraccion: 0.56 },
-  ],
-  // MD ← Pregunta 3 (frecuencia de consumo), opción "Semanal": 205 de 384.
-  factorDisponibilidad: {
-    seleccionadas: 205,
-    total: 384,
-    referencia: "P3 frecuencia de consumo · Semanal",
-  },
-  // ME ← Pregunta 6 (frecuencia de compra), opciones a+b+c: 26+154+104 = 284 de 384.
-  factorEfectividad: {
-    seleccionadas: 284,
-    total: 384,
-    referencia: "P6 frecuencia de compra · diaria + 2-3/sem + 1/sem",
-  },
-  // Captación inicial conservadora.
-  participacionMercado: 0.1,
-  // CPC ← Pregunta 6 con marca de clase (veces/semana) × frecuencia.
+  porcentajeEdad: 0.62, // 18–50 años
+  porcentajeNSE: 0.56, // NSE B + C
+  participacionMercado: 0.1, // captación inicial conservadora
+  crecimientoPoblacional: 0.02,
+  // MD ← P3 frecuencia de consumo "Semanal": 205 de 384.
+  factorDisponibilidad: 205 / 384,
+  // ME ← P6 frecuencia de compra (a+b+c): 284 de 384.
+  factorEfectividad: 284 / 384,
+  // CPC ← P6 con marca de clase (veces/semana) × frecuencia.
   consumoPerCapita: [
     { id: "diaria", etiqueta: "Todos los días", marcaClase: 7, fi: 26 },
     { id: "2a3", etiqueta: "2 a 3 veces por semana", marcaClase: 2.5, fi: 154 },

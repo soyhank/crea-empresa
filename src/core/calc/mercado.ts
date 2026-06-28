@@ -1,30 +1,16 @@
-import { fraccion, product, sum } from "../money";
-import type {
-  CpcItem,
-  FactorEncuesta,
-  MercadoInput,
-  MercadoResult,
-} from "../schemas/mercado";
+import { sum } from "../money";
+import type { CpcItem, MercadoInput, MercadoResult } from "../schemas/mercado";
 
 /**
  * Motor de cálculo del módulo Mercado / Demanda (funciones puras, testeables).
  *
  * Reproduce EXACTAMENTE la cadena del Excel K-KORI conservando plena precisión:
  *   Universo → MP → MD → ME → MO → Demanda
- *
- * Corrección sobre el Excel: los factores se derivan de conteos enteros de la
- * encuesta (fi/total) en vez de porcentajes redondeados, evitando el arrastre
- * de error que en el original desplazaba los resultados.
  */
 
 /** Universo = suma de la población de todos los distritos/zonas. */
 export function calcularUniverso(distritos: Array<{ poblacion: number }>): number {
   return sum(distritos.map((d) => d.poblacion));
-}
-
-/** Convierte un factor de encuesta {seleccionadas,total} a fracción exacta. */
-export function factorAFraccion(factor: FactorEncuesta): number {
-  return fraccion(factor.seleccionadas, factor.total);
 }
 
 /**
@@ -37,27 +23,13 @@ export function calcularCPC(items: CpcItem[]): number {
   return sum(items.map((i) => i.marcaClase * (i.fi / total)));
 }
 
-/** Mercado potencial = Universo × producto de los filtros de segmentación. */
-export function calcularMercadoPotencial(
-  universo: number,
-  filtros: Array<{ fraccion: number }>,
-): number {
-  return universo * product(filtros.map((f) => f.fraccion));
-}
-
 /** Cálculo completo del módulo. NO redondea: el redondeo es de presentación. */
 export function calcularMercado(input: MercadoInput): MercadoResult {
   const universo = calcularUniverso(input.distritos);
 
-  const fSegment = product(input.filtrosSegmentacion.map((f) => f.fraccion));
-  const mercadoPotencial = universo * fSegment;
-
-  const fDisp = factorAFraccion(input.factorDisponibilidad);
-  const mercadoDisponible = mercadoPotencial * fDisp;
-
-  const fEfec = factorAFraccion(input.factorEfectividad);
-  const mercadoEfectivo = mercadoDisponible * fEfec;
-
+  const mercadoPotencial = universo * input.porcentajeEdad * input.porcentajeNSE;
+  const mercadoDisponible = mercadoPotencial * input.factorDisponibilidad;
+  const mercadoEfectivo = mercadoDisponible * input.factorEfectividad;
   const mercadoObjetivo = mercadoEfectivo * input.participacionMercado;
 
   const consumoPerCapita = calcularCPC(input.consumoPerCapita);
@@ -66,6 +38,7 @@ export function calcularMercado(input: MercadoInput): MercadoResult {
   const periodos = input.periodosPorAnio || 12;
   const demandaPorPeriodo = demandaAnual / periodos;
 
+  const pct = (f: number) => `${(f * 100).toFixed(2)}%`;
   const pasos: MercadoResult["pasos"] = [
     {
       clave: "universo",
@@ -75,31 +48,31 @@ export function calcularMercado(input: MercadoInput): MercadoResult {
     },
     {
       clave: "mercadoPotencial",
-      etiqueta: "Mercado potencial (MP)",
+      etiqueta: "Mercado potencial",
       valor: mercadoPotencial,
-      detalle: `Universo × ${(fSegment * 100).toFixed(2)}% (segmentación)`,
+      detalle: `Universo × ${pct(input.porcentajeEdad)} × ${pct(input.porcentajeNSE)}`,
     },
     {
       clave: "mercadoDisponible",
-      etiqueta: "Mercado disponible (MD)",
+      etiqueta: "Mercado disponible",
       valor: mercadoDisponible,
-      detalle: `MP × ${(fDisp * 100).toFixed(2)}% (frecuencia de consumo)`,
+      detalle: `× ${pct(input.factorDisponibilidad)} (frecuencia de consumo)`,
     },
     {
       clave: "mercadoEfectivo",
-      etiqueta: "Mercado efectivo (ME)",
+      etiqueta: "Mercado efectivo",
       valor: mercadoEfectivo,
-      detalle: `MD × ${(fEfec * 100).toFixed(2)}% (intención de compra)`,
+      detalle: `× ${pct(input.factorEfectividad)} (intención de compra)`,
     },
     {
       clave: "mercadoObjetivo",
-      etiqueta: "Mercado objetivo (MO)",
+      etiqueta: "Mercado objetivo",
       valor: mercadoObjetivo,
-      detalle: `ME × ${(input.participacionMercado * 100).toFixed(2)}% (captación)`,
+      detalle: `× ${pct(input.participacionMercado)} (captación)`,
     },
     {
       clave: "consumoPerCapita",
-      etiqueta: "Consumo per cápita (CPC)",
+      etiqueta: "Consumo per cápita",
       valor: consumoPerCapita,
       detalle: "Σ marca de clase × frecuencia",
     },
@@ -107,7 +80,7 @@ export function calcularMercado(input: MercadoInput): MercadoResult {
       clave: "demandaAnual",
       etiqueta: "Demanda anual",
       valor: demandaAnual,
-      detalle: "MO × CPC",
+      detalle: "Mercado objetivo × CPC",
     },
     {
       clave: "demandaPorPeriodo",

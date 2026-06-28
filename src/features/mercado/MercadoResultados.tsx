@@ -2,85 +2,79 @@ import * as React from "react";
 import { calcularMercado } from "@/core/calc";
 import type { MercadoInput } from "@/core/schemas";
 import { formatInteger, formatNumber } from "@/core/money";
-import { Lock, Zap } from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  Cell,
-  LabelList,
-  ResponsiveContainer,
-  Tooltip as RTooltip,
-  XAxis,
-} from "recharts";
+import { Zap } from "lucide-react";
 
-const COLORS = ["#c7d2fe", "#a5b4fc", "#818cf8", "#6366f1", "#4f46e5"];
+const CASCADA = [
+  { clave: "universo", etiqueta: "Universo" },
+  { clave: "mercadoPotencial", etiqueta: "Mercado potencial" },
+  { clave: "mercadoDisponible", etiqueta: "Mercado disponible" },
+  { clave: "mercadoEfectivo", etiqueta: "Mercado efectivo" },
+  { clave: "mercadoObjetivo", etiqueta: "Mercado objetivo" },
+] as const;
 
 export function MercadoResultados({ value }: { value: MercadoInput }) {
   const r = React.useMemo(() => calcularMercado(value), [value]);
-
-  const embudo = [
-    { nombre: "Universo", valor: r.universo },
-    { nombre: "MP", valor: r.mercadoPotencial },
-    { nombre: "MD", valor: r.mercadoDisponible },
-    { nombre: "ME", valor: r.mercadoEfectivo },
-    { nombre: "MO", valor: r.mercadoObjetivo },
-  ];
+  const sinDatos = r.universo <= 0 || r.demandaAnual <= 0;
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        <Zap className="size-3.5 text-primary" /> Resultados en vivo
+      <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+        <Zap className="size-4 text-primary" /> Resultados de este módulo
       </div>
 
-      {/* Demanda destacada */}
-      <div className="rounded-lg border border-primary/20 bg-accent p-4">
-        <p className="text-xs font-medium text-accent-foreground">Demanda del proyecto</p>
-        <p className="mt-1 text-4xl font-bold tabular text-primary">
-          {formatNumber(r.demandaAnual)} <span className="text-base font-medium text-muted-foreground">/ año</span>
-        </p>
-        <p className="text-sm tabular text-muted-foreground">
-          {formatNumber(r.demandaPorPeriodo)} por periodo · CPC {formatNumber(r.consumoPerCapita, 6)}
-        </p>
-      </div>
-
-      {/* Embudo */}
-      <div className="rounded-lg border border-border bg-card p-3">
-        <ResponsiveContainer width="100%" height={150}>
-          <BarChart data={embudo} margin={{ top: 16, right: 8, left: 8, bottom: 0 }}>
-            <XAxis dataKey="nombre" tickLine={false} axisLine={false} fontSize={11} />
-            <RTooltip
-              formatter={(v: number) => [formatInteger(v), "Personas"]}
-              cursor={{ fill: "rgba(99,102,241,0.06)" }}
-              contentStyle={{ fontSize: 12, borderRadius: 8 }}
-            />
-            <Bar dataKey="valor" radius={[4, 4, 0, 0]}>
-              {embudo.map((_, i) => (
-                <Cell key={i} fill={COLORS[i]} />
-              ))}
-              <LabelList dataKey="valor" position="top" fontSize={9} formatter={(v: number) => formatInteger(v)} />
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Cadena de cálculo (no editable) */}
-      <div className="space-y-2">
-        {r.pasos
-          .filter((p) => !["demandaAnual", "demandaPorPeriodo"].includes(p.clave))
-          .map((p) => (
-            <div key={p.clave} className="flex items-start justify-between rounded-lg border border-border bg-slate-50 px-3 py-2">
-              <div className="min-w-0">
-                <div className="flex items-center gap-1 text-xs font-medium text-foreground">
-                  <Lock className="size-3 text-muted-foreground" /> {p.etiqueta}
+      {sinDatos ? (
+        <div className="rounded-lg border border-dashed border-border bg-slate-50 p-4 text-center text-sm text-muted-foreground">
+          Completa los datos para ver resultados.
+        </div>
+      ) : (
+        <>
+          {/* Cascada con sangría progresiva */}
+          <div className="space-y-1.5">
+            {CASCADA.map((c, i) => {
+              const valor = (r as unknown as Record<string, number>)[c.clave];
+              const esObjetivo = c.clave === "mercadoObjetivo";
+              return (
+                <div
+                  key={c.clave}
+                  style={{ marginLeft: i * 12 }}
+                  className={
+                    "flex items-center justify-between gap-2 rounded-r-md border-l-2 py-1.5 pl-3 pr-2 " +
+                    (esObjetivo
+                      ? "border-primary bg-accent"
+                      : "border-slate-200 bg-slate-50")
+                  }
+                >
+                  <span className={"flex items-center gap-1 text-xs " + (esObjetivo ? "font-semibold text-primary" : "text-slate-700")}>
+                    <Zap className={"size-3 " + (esObjetivo ? "text-primary" : "text-muted-foreground")} /> {c.etiqueta}
+                  </span>
+                  <span className={"shrink-0 text-sm tabular " + (esObjetivo ? "font-bold text-primary" : "font-semibold text-slate-900")}>
+                    {formatInteger(valor)}
+                  </span>
                 </div>
-                <p className="truncate text-[11px] text-muted-foreground">{p.detalle}</p>
+              );
+            })}
+          </div>
+
+          {/* Demanda (resaltada verde) */}
+          <div className="rounded-lg border border-success/30 bg-success-soft p-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <p className="text-[11px] font-medium text-success">Demanda / año</p>
+                <p className="text-xl font-bold tabular text-success">{formatNumber(r.demandaAnual)}</p>
+                <p className="text-[10px] text-muted-foreground">cajas</p>
               </div>
-              <span className="ml-2 shrink-0 text-sm font-semibold tabular text-foreground">
-                {p.clave === "consumoPerCapita" ? formatNumber(p.valor, 6) : formatInteger(p.valor)}
-              </span>
+              <div>
+                <p className="text-[11px] font-medium text-success">Demanda / mes</p>
+                <p className="text-xl font-bold tabular text-success">{formatNumber(r.demandaPorPeriodo)}</p>
+                <p className="text-[10px] text-muted-foreground">cajas</p>
+              </div>
             </div>
-          ))}
-      </div>
+            <p className="mt-2 border-t border-success/20 pt-2 text-xs text-slate-700">
+              Consumo per cápita: <b className="tabular">{formatNumber(r.consumoPerCapita, 4)}</b> cajas
+            </p>
+          </div>
+        </>
+      )}
     </div>
   );
 }

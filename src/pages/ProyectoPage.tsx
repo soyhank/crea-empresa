@@ -3,8 +3,10 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { data } from "@/lib/data";
 import type { Project, ProjectData } from "@/lib/types";
-import { MODULOS, MODULO_POR_ID, mercadoInputSchema, type MercadoInput, type ModuloId } from "@/core/schemas";
-import { calcularEstados, isModuloCompleto, porcentajeAvance } from "@/lib/wizard";
+import {
+  MODULOS, MODULO_POR_ID, moduloIdSchema, type MercadoInput, type ModuloId,
+} from "@/core/schemas";
+import { calcularEstados, modulosAguasAbajo, modulosCompletos, tieneDatos } from "@/lib/wizard";
 import { TopBar } from "@/components/TopBar";
 import { SidebarWizard } from "@/features/proyecto/SidebarWizard";
 import { MercadoForm } from "@/features/mercado/MercadoForm";
@@ -13,25 +15,26 @@ import { mercadoVacio, mercadoEjemploKkori } from "@/features/mercado/defaults";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
-  ArrowLeft, ArrowRight, Check, CheckCircle2, CloudUpload, Construction, ListChecks, Sparkles, Zap,
+  AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, CloudUpload, Construction, ListChecks, Sparkles, Zap,
 } from "lucide-react";
 
 type SaveState = "idle" | "saving" | "saved";
 
 export function ProyectoPage() {
-  const { id = "" } = useParams();
+  const { id = "", modulo } = useParams();
   const navigate = useNavigate();
   const [project, setProject] = React.useState<Project | null>(null);
   const [projData, setProjData] = React.useState<ProjectData>({});
-  const [activo, setActivo] = React.useState<ModuloId>("mercado");
   const [loading, setLoading] = React.useState(true);
   const [saveState, setSaveState] = React.useState<SaveState>("idle");
   const [leftOpen, setLeftOpen] = React.useState(false);
   const [rightOpen, setRightOpen] = React.useState(false);
   const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const moduloValido = moduloIdSchema.safeParse(modulo).success ? (modulo as ModuloId) : null;
 
   React.useEffect(() => {
     let active = true;
@@ -45,7 +48,6 @@ export function ProyectoPage() {
       }
       setProject(p);
       setProjData(p.data ?? {});
-      setActivo(p.data?.lastModulo ?? "mercado");
       setLoading(false);
     })();
     return () => {
@@ -53,8 +55,18 @@ export function ProyectoPage() {
     };
   }, [id, navigate]);
 
+  // Normaliza la URL: si el módulo es inválido, redirige al último editado.
+  React.useEffect(() => {
+    if (!loading && project && !moduloValido) {
+      navigate(`/proyectos/${id}/${projData.lastModulo ?? "mercado"}`, { replace: true });
+    }
+  }, [loading, project, moduloValido, id, projData.lastModulo, navigate]);
+
+  const activo: ModuloId = moduloValido ?? "mercado";
+
   const estados = React.useMemo(() => calcularEstados(projData), [projData]);
-  const avance = React.useMemo(() => porcentajeAvance(projData), [projData]);
+  const completos = React.useMemo(() => modulosCompletos(projData), [projData]);
+  const needsReview = React.useMemo(() => new Set(projData._needsReview ?? []), [projData._needsReview]);
 
   const scheduleSave = React.useCallback(
     (next: ProjectData) => {
@@ -68,40 +80,33 @@ export function ProyectoPage() {
           setSaveState("idle");
           toast.error(e instanceof Error ? e.message : "No se pudo guardar");
         }
-      }, 600);
+      }, 300);
     },
     [id],
   );
 
-  const patchData = (patch: ProjectData) => {
+  // Editar un módulo: guarda + marca aguas abajo (con datos) como "necesita revisión".
+  const editarModulo = (mod: ModuloId, inputs: unknown) => {
     setProjData((prev) => {
-      const next = { ...prev, ...patch };
+      const downstream = modulosAguasAbajo(mod).filter((mid) => tieneDatos(mid, prev));
+      const review = Array.from(new Set([...(prev._needsReview ?? []), ...downstream]));
+      const next: ProjectData = { ...prev, [mod]: inputs, lastModulo: mod, _needsReview: review };
       scheduleSave(next);
       return next;
     });
   };
 
-  const updateMercado = (next: MercadoInput) => patchData({ mercado: next, lastModulo: "mercado" });
-
   const selectModulo = (mid: ModuloId) => {
-    setActivo(mid);
     setLeftOpen(false);
-    patchData({ lastModulo: mid });
+    setProjData((prev) => {
+      const next: ProjectData = { ...prev, lastModulo: mid, _needsReview: (prev._needsReview ?? []).filter((x) => x !== mid) };
+      scheduleSave(next);
+      return next;
+    });
+    navigate(`/proyectos/${id}/${mid}`);
   };
 
-  const mercadoValue = (projData.mercado as MercadoInput | undefined) ?? mercadoVacio();
-
-  const validarYContinuar = () => {
-    const parsed = mercadoInputSchema.safeParse(mercadoValue);
-    if (!parsed.success) {
-      toast.error("Completa los campos requeridos para validar el módulo.");
-      return;
-    }
-    toast.success("Módulo de Mercado completo ✓");
-    const next = MODULOS.find((m) => m.orden === MODULO_POR_ID[activo].orden + 1);
-    if (next) selectModulo(next.id);
-  };
-
+  const updateMercado = (next: MercadoInput) => editarModulo("mercado", next);
   const cargarEjemplo = () => {
     updateMercado(mercadoEjemploKkori());
     toast.success("Ejemplo K-KORI cargado");
@@ -111,18 +116,15 @@ export function ProyectoPage() {
     return (
       <div className="min-h-screen bg-background">
         <TopBar />
-        <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr_360px]">
-          <div className="hidden space-y-3 border-r border-border p-4 lg:block">
+        <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] xl:grid-cols-[200px_1fr_230px]">
+          <div className="hidden space-y-3 border-r border-border p-4 md:block">
             {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-9 w-full" />)}
           </div>
           <div className="mx-auto w-full max-w-2xl space-y-4 px-6 py-6">
-            <Skeleton className="h-7 w-1/2" />
-            <Skeleton className="h-40 w-full" />
-            <Skeleton className="h-40 w-full" />
+            <Skeleton className="h-7 w-1/2" /><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" />
           </div>
-          <div className="hidden space-y-3 border-l border-border p-4 lg:block">
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-40 w-full" />
+          <div className="hidden space-y-3 border-l border-border p-4 xl:block">
+            <Skeleton className="h-24 w-full" /><Skeleton className="h-40 w-full" />
           </div>
         </div>
       </div>
@@ -131,7 +133,24 @@ export function ProyectoPage() {
 
   const meta = MODULO_POR_ID[activo];
   const esMercado = activo === "mercado";
-  const mercadoCompleto = isModuloCompleto("mercado", projData);
+  const mercadoValue = (projData.mercado as MercadoInput | undefined) ?? mercadoVacio();
+
+  const prevMod = MODULOS.find((m) => m.orden === meta.orden - 1);
+  const nextMod = MODULOS.find((m) => m.orden === meta.orden + 1);
+  const nextBloqueado = nextMod ? estados[nextMod.id].estado === "bloqueado" : true;
+
+  const revisarAbajo = (projData._needsReview ?? []).filter((mid) => MODULO_POR_ID[mid].orden > meta.orden);
+
+  const wizard = (
+    <SidebarWizard
+      estados={estados}
+      activo={activo}
+      onSelect={selectModulo}
+      completos={completos}
+      needsReview={needsReview}
+      tableroHabilitado={estados.flujo_caja.estado === "completo"}
+    />
+  );
 
   const resultados = esMercado ? <MercadoResultados value={mercadoValue} /> : (
     <p className="text-sm text-muted-foreground">Los resultados en vivo de este módulo aparecerán aquí.</p>
@@ -148,41 +167,30 @@ export function ProyectoPage() {
         centerSlot={project.nombre}
       />
 
-      {/* Barra móvil: abre los paneles laterales como drawers */}
-      <div className="flex items-center gap-2 border-b border-border bg-card px-4 py-2 lg:hidden">
+      {/* Barra para abrir el wizard en móvil (<md) */}
+      <div className="flex items-center gap-2 border-b border-border bg-card px-4 py-2 md:hidden">
         <Sheet open={leftOpen} onOpenChange={setLeftOpen}>
           <SheetTrigger asChild>
             <Button variant="outline" size="sm"><ListChecks /> Módulos</Button>
           </SheetTrigger>
           <SheetContent side="left" className="p-0">
             <SheetTitle>Módulos del proyecto</SheetTitle>
-            <SidebarWizard estados={estados} activo={activo} onSelect={selectModulo} avance={avance} />
+            {wizard}
           </SheetContent>
         </Sheet>
         <span className="flex-1 truncate text-sm font-medium text-slate-700">{project.nombre}</span>
-        <Sheet open={rightOpen} onOpenChange={setRightOpen}>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="sm"><Zap /> Resultados</Button>
-          </SheetTrigger>
-          <SheetContent side="right" className="overflow-y-auto p-4">
-            <SheetTitle>Resultados en vivo</SheetTitle>
-            <div aria-live="polite">{resultados}</div>
-          </SheetContent>
-        </Sheet>
       </div>
 
-      <div className="grid flex-1 grid-cols-1 lg:grid-cols-[260px_1fr_360px]">
-        <aside className="hidden border-r border-border bg-card lg:block">
-          <SidebarWizard estados={estados} activo={activo} onSelect={selectModulo} avance={avance} />
-        </aside>
+      <div className="grid flex-1 grid-cols-1 md:grid-cols-[200px_1fr] xl:grid-cols-[200px_1fr_230px]">
+        <aside className="hidden border-r border-border bg-card md:block">{wizard}</aside>
 
         <main className="min-w-0 overflow-y-auto">
           <div className="mx-auto max-w-2xl px-6 py-6">
-            <div className="mb-5 flex items-start justify-between gap-4">
+            <div className="mb-4 flex items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-lg font-semibold tracking-tight text-slate-900">{meta.nombre}</h1>
-                  {esMercado && mercadoCompleto && <Badge variant="success"><Check className="size-3" /> Completo</Badge>}
+                  {esMercado && estados.mercado.estado === "completo" && <Badge variant="success">Completo</Badge>}
                 </div>
                 <p className="text-sm text-muted-foreground">{meta.descripcion}</p>
               </div>
@@ -192,20 +200,21 @@ export function ProyectoPage() {
               </span>
             </div>
 
+            {revisarAbajo.length > 0 && (
+              <Alert variant="warning" className="mb-4">
+                <AlertTriangle />
+                <AlertDescription>
+                  Cambiaste datos que afectan a {revisarAbajo.map((m) => MODULO_POR_ID[m].nombre).join(", ")}. Se recalcularán.
+                </AlertDescription>
+              </Alert>
+            )}
+
             {esMercado ? (
               <>
                 <div className="mb-4 flex justify-end">
-                  <Button variant="outline" size="sm" onClick={cargarEjemplo}>
-                    <Sparkles /> Cargar ejemplo K-KORI
-                  </Button>
+                  <Button variant="outline" size="sm" onClick={cargarEjemplo}><Sparkles /> Cargar ejemplo K-KORI</Button>
                 </div>
                 <MercadoForm value={mercadoValue} onChange={updateMercado} />
-                <Separator className="mt-8" />
-                <div className="mt-5 flex justify-end">
-                  <Button onClick={validarYContinuar}>
-                    Validar y continuar <ArrowRight />
-                  </Button>
-                </div>
               </>
             ) : (
               <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border bg-card py-16 text-center">
@@ -213,21 +222,42 @@ export function ProyectoPage() {
                 <div>
                   <p className="font-medium text-slate-900">Módulo en construcción</p>
                   <p className="mx-auto max-w-sm text-sm text-muted-foreground">
-                    {meta.descripcion} Se habilitará en el siguiente sprint, replicando el patrón
-                    de cálculo en vivo del módulo de Mercado.
+                    {meta.descripcion} Se habilitará en el siguiente sprint, replicando el patrón del módulo de Mercado.
                   </p>
                 </div>
               </div>
             )}
+
+            {/* Footer navegación */}
+            <div className="mt-8 flex items-center justify-between border-t border-border pt-5">
+              <Button variant="outline" disabled={!prevMod} onClick={() => prevMod && selectModulo(prevMod.id)}>
+                <ArrowLeft /> Anterior
+              </Button>
+              <Button disabled={!nextMod || nextBloqueado} onClick={() => nextMod && selectModulo(nextMod.id)}>
+                Siguiente módulo <ArrowRight />
+              </Button>
+            </div>
           </div>
         </main>
 
-        <aside className="hidden border-l border-border bg-card lg:block">
-          <div className="sticky top-14 max-h-[calc(100vh-3.5rem)] overflow-y-auto p-4" aria-live="polite">
-            {resultados}
-          </div>
+        {/* Panel derecho (xl) */}
+        <aside className="hidden border-l border-border bg-card xl:block">
+          <div className="sticky top-14 max-h-[calc(100vh-3.5rem)] overflow-y-auto p-4" aria-live="polite">{resultados}</div>
         </aside>
       </div>
+
+      {/* Botón flotante "Ver resultados" (<xl) */}
+      <Sheet open={rightOpen} onOpenChange={setRightOpen}>
+        <SheetTrigger asChild>
+          <Button className="fixed bottom-6 right-6 z-20 shadow-md xl:hidden" size="lg">
+            <Zap /> Ver resultados
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="right" className="overflow-y-auto p-4">
+          <SheetTitle>Resultados de este módulo</SheetTitle>
+          <div aria-live="polite">{resultados}</div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

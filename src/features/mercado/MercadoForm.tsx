@@ -1,25 +1,19 @@
 import type { MercadoInput } from "@/core/schemas";
+import { calcularCPC, calcularUniverso } from "@/core/calc";
+import { formatInteger, formatNumber } from "@/core/money";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { NumberField } from "@/components/Field";
-import { Slider } from "@/components/ui/slider";
-import { formatPercent } from "@/core/money";
+import { Badge } from "@/components/ui/badge";
+import { PercentField } from "@/components/Field";
+import {
+  Accordion, AccordionContent, AccordionItem, AccordionTrigger,
+} from "@/components/ui/accordion";
 import { rowId } from "@/lib/utils";
-import { Plus, Trash2 } from "lucide-react";
+import { Lock, Plus, Trash2 } from "lucide-react";
 
 interface Props {
   value: MercadoInput;
   onChange: (next: MercadoInput) => void;
-}
-
-function SectionTitle({ children, hint }: { children: React.ReactNode; hint?: string }) {
-  return (
-    <div className="mb-3">
-      <h3 className="text-base font-semibold text-slate-900">{children}</h3>
-      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
-    </div>
-  );
 }
 
 export function MercadoForm({ value, onChange }: Props) {
@@ -28,175 +22,155 @@ export function MercadoForm({ value, onChange }: Props) {
   // ----- Distritos -----
   const updDistrito = (id: string, patch: Partial<MercadoInput["distritos"][number]>) =>
     set({ distritos: value.distritos.map((d) => (d.id === id ? { ...d, ...patch } : d)) });
-  const addDistrito = () =>
-    set({ distritos: [...value.distritos, { id: rowId("dist"), nombre: "", poblacion: 0 }] });
-  const delDistrito = (id: string) =>
-    set({ distritos: value.distritos.filter((d) => d.id !== id) });
-
-  // ----- Filtros de segmentación -----
-  const updFiltro = (id: string, patch: Partial<MercadoInput["filtrosSegmentacion"][number]>) =>
-    set({ filtrosSegmentacion: value.filtrosSegmentacion.map((f) => (f.id === id ? { ...f, ...patch } : f)) });
-  const addFiltro = () =>
-    set({ filtrosSegmentacion: [...value.filtrosSegmentacion, { id: rowId("seg"), etiqueta: "", fraccion: 0 }] });
-  const delFiltro = (id: string) =>
-    set({ filtrosSegmentacion: value.filtrosSegmentacion.filter((f) => f.id !== id) });
+  const addDistrito = () => set({ distritos: [...value.distritos, { id: rowId("dist"), nombre: "", poblacion: 0 }] });
+  const delDistrito = (id: string) => set({ distritos: value.distritos.filter((d) => d.id !== id) });
 
   // ----- CPC -----
   const updCpc = (id: string, patch: Partial<MercadoInput["consumoPerCapita"][number]>) =>
     set({ consumoPerCapita: value.consumoPerCapita.map((c) => (c.id === id ? { ...c, ...patch } : c)) });
-  const addCpc = () =>
-    set({ consumoPerCapita: [...value.consumoPerCapita, { id: rowId("cpc"), etiqueta: "", marcaClase: 0, fi: 0 }] });
-  const delCpc = (id: string) =>
-    set({ consumoPerCapita: value.consumoPerCapita.filter((c) => c.id !== id) });
+  const addCpc = () => set({ consumoPerCapita: [...value.consumoPerCapita, { id: rowId("cpc"), etiqueta: "", marcaClase: 0, fi: 0 }] });
+  const delCpc = (id: string) => set({ consumoPerCapita: value.consumoPerCapita.filter((c) => c.id !== id) });
 
-  const dispPct = value.factorDisponibilidad.total
-    ? value.factorDisponibilidad.seleccionadas / value.factorDisponibilidad.total
-    : 0;
-  const efecPct = value.factorEfectividad.total
-    ? value.factorEfectividad.seleccionadas / value.factorEfectividad.total
-    : 0;
+  const universo = calcularUniverso(value.distritos);
+  const cpc = calcularCPC(value.consumoPerCapita);
+
+  const enterAdds = (fn: () => void) => (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      fn();
+    }
+  };
 
   return (
-    <div className="space-y-8">
-      {/* Distritos */}
-      <section>
-        <SectionTitle hint="Población de cada distrito o zona del estudio. El universo es la suma.">
-          1 · Universo poblacional
-        </SectionTitle>
-        <div className="space-y-2">
-          <div className="grid grid-cols-[1fr_140px_36px] items-center gap-2 px-1 text-xs font-medium text-muted-foreground">
-            <span>Distrito / zona</span>
-            <span>Población</span>
-            <span />
+    <Accordion type="multiple" defaultValue={["poblacion", "segmentacion", "encuesta", "cpc"]} className="space-y-3">
+      {/* 1. Datos poblacionales */}
+      <AccordionItem value="poblacion">
+        <AccordionTrigger>1 · Datos poblacionales</AccordionTrigger>
+        <AccordionContent>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs font-medium text-muted-foreground">
+                <th className="pb-2 pl-1">Distrito / zona</th>
+                <th className="pb-2">Población</th>
+                <th className="w-9" />
+              </tr>
+            </thead>
+            <tbody>
+              {value.distritos.map((d) => (
+                <tr key={d.id}>
+                  <td className="py-1 pr-2">
+                    <Input value={d.nombre} placeholder="Ej. Comas" onChange={(e) => updDistrito(d.id, { nombre: e.target.value })} />
+                  </td>
+                  <td className="py-1 pr-2">
+                    <Input type="number" className="tabular" value={d.poblacion || ""} onKeyDown={enterAdds(addDistrito)} onChange={(e) => updDistrito(d.id, { poblacion: Number(e.target.value) || 0 })} />
+                  </td>
+                  <td className="py-1">
+                    <Button variant="ghost" size="icon" onClick={() => delDistrito(d.id)} disabled={value.distritos.length <= 1} aria-label="Eliminar fila">
+                      <Trash2 className="text-muted-foreground" />
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td className="rounded-l-md bg-slate-50 py-2 pl-3 text-xs font-medium text-slate-700">
+                  <span className="inline-flex items-center gap-1"><Lock className="size-3 text-muted-foreground" /> Universo (calculado)</span>
+                </td>
+                <td className="bg-slate-50 py-2 text-sm font-semibold tabular text-slate-900">{formatInteger(universo)}</td>
+                <td className="rounded-r-md bg-slate-50" />
+              </tr>
+            </tfoot>
+          </table>
+          <div className="mt-2 flex items-center justify-between">
+            <Button variant="outline" size="sm" onClick={addDistrito}><Plus /> Agregar distrito</Button>
+            <span className="text-xs text-muted-foreground">Fuente sugerida: CPI 2025</span>
           </div>
-          {value.distritos.map((d) => (
-            <div key={d.id} className="grid grid-cols-[1fr_140px_36px] items-center gap-2">
-              <Input value={d.nombre} placeholder="Ej. Comas" onChange={(e) => updDistrito(d.id, { nombre: e.target.value })} />
-              <Input
-                type="number"
-                className="tabular"
-                value={d.poblacion || ""}
-                onChange={(e) => updDistrito(d.id, { poblacion: Number(e.target.value) || 0 })}
-              />
-              <Button variant="ghost" size="icon" onClick={() => delDistrito(d.id)} disabled={value.distritos.length <= 1}>
-                <Trash2 className="text-muted-foreground" />
-              </Button>
-            </div>
-          ))}
-          <Button variant="outline" size="sm" onClick={addDistrito}>
-            <Plus /> Agregar distrito
-          </Button>
-        </div>
-      </section>
+        </AccordionContent>
+      </AccordionItem>
 
-      {/* Segmentación */}
-      <section>
-        <SectionTitle hint="Criterios que reducen el universo al mercado potencial. Se multiplican entre sí.">
-          2 · Segmentación (Mercado Potencial)
-        </SectionTitle>
-        <div className="space-y-2">
-          <div className="grid grid-cols-[1fr_120px_36px] items-center gap-2 px-1 text-xs font-medium text-muted-foreground">
-            <span>Criterio</span>
-            <span>% del universo</span>
-            <span />
+      {/* 2. Segmentación */}
+      <AccordionItem value="segmentacion">
+        <AccordionTrigger>2 · Segmentación del mercado</AccordionTrigger>
+        <AccordionContent>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <PercentField label="Segmento de edad (18–50)" helper="% del universo en el rango objetivo" value={value.porcentajeEdad} onChange={(v) => set({ porcentajeEdad: v })} />
+            <PercentField label="NSE B + C" helper="% del nivel socioeconómico objetivo" value={value.porcentajeNSE} onChange={(v) => set({ porcentajeNSE: v })} />
+            <PercentField label="Captación de mercado" helper="Participación objetivo del mercado efectivo" value={value.participacionMercado} onChange={(v) => set({ participacionMercado: v })} />
+            <PercentField label="Crecimiento poblacional anual" helper="Para la proyección de ventas" value={value.crecimientoPoblacional} onChange={(v) => set({ crecimientoPoblacional: v })} />
           </div>
-          {value.filtrosSegmentacion.map((f) => (
-            <div key={f.id} className="grid grid-cols-[1fr_120px_36px] items-center gap-2">
-              <Input value={f.etiqueta} placeholder="Ej. 18–50 años" onChange={(e) => updFiltro(f.id, { etiqueta: e.target.value })} />
-              <div className="relative">
-                <Input
-                  type="number"
-                  className="tabular pr-7"
-                  value={f.fraccion ? +(f.fraccion * 100).toFixed(4) : ""}
-                  onChange={(e) => updFiltro(f.id, { fraccion: (Number(e.target.value) || 0) / 100 })}
-                />
-                <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
-              </div>
-              <Button variant="ghost" size="icon" onClick={() => delFiltro(f.id)} disabled={value.filtrosSegmentacion.length <= 1}>
-                <Trash2 className="text-muted-foreground" />
-              </Button>
-            </div>
-          ))}
-          <Button variant="outline" size="sm" onClick={addFiltro}>
-            <Plus /> Agregar criterio
-          </Button>
-        </div>
-      </section>
+        </AccordionContent>
+      </AccordionItem>
 
-      {/* Factores de encuesta */}
-      <section>
-        <SectionTitle hint="Provienen de la encuesta: cuántas respuestas de cuántas en total. El % se calcula solo.">
-          3 · Factores de la encuesta
-        </SectionTitle>
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div className="rounded-lg border border-border bg-secondary/40 p-3">
-            <Label className="text-xs text-muted-foreground">Mercado disponible · frecuencia de consumo</Label>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <NumberField label="Respuestas filtro" value={value.factorDisponibilidad.seleccionadas}
-                onChange={(v) => set({ factorDisponibilidad: { ...value.factorDisponibilidad, seleccionadas: Math.round(v) } })} />
-              <NumberField label="Total encuestados" value={value.factorDisponibilidad.total}
-                onChange={(v) => set({ factorDisponibilidad: { ...value.factorDisponibilidad, total: Math.round(v) } })} />
-            </div>
-            <p className="mt-2 text-xs font-medium text-primary">Factor MD = {formatPercent(dispPct)}</p>
+      {/* 3. Inputs de encuesta */}
+      <AccordionItem value="encuesta">
+        <AccordionTrigger>
+          <span className="flex items-center gap-2">3 · Inputs de encuesta <Badge variant="default">2 usadas en cálculo</Badge></span>
+        </AccordionTrigger>
+        <AccordionContent>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <PercentField
+              label="P3 · Frecuencia de consumo (semanal)"
+              annotation="→ Mercado disponible"
+              helper="% que consume con la frecuencia filtro"
+              value={value.factorDisponibilidad}
+              onChange={(v) => set({ factorDisponibilidad: v })}
+            />
+            <PercentField
+              label="P6 · Frecuencia de compra"
+              annotation="→ Mercado efectivo"
+              helper="% con intención de compra"
+              value={value.factorEfectividad}
+              onChange={(v) => set({ factorEfectividad: v })}
+            />
           </div>
-          <div className="rounded-lg border border-border bg-secondary/40 p-3">
-            <Label className="text-xs text-muted-foreground">Mercado efectivo · intención de compra</Label>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <NumberField label="Respuestas aceptación" value={value.factorEfectividad.seleccionadas}
-                onChange={(v) => set({ factorEfectividad: { ...value.factorEfectividad, seleccionadas: Math.round(v) } })} />
-              <NumberField label="Total encuestados" value={value.factorEfectividad.total}
-                onChange={(v) => set({ factorEfectividad: { ...value.factorEfectividad, total: Math.round(v) } })} />
-            </div>
-            <p className="mt-2 text-xs font-medium text-primary">Factor ME = {formatPercent(efecPct)}</p>
-          </div>
-        </div>
-      </section>
+        </AccordionContent>
+      </AccordionItem>
 
-      {/* Participación */}
-      <section>
-        <SectionTitle hint="Cuota del mercado efectivo que planeas captar al inicio.">
-          4 · Participación de mercado (Mercado Objetivo)
-        </SectionTitle>
-        <div className="flex items-center gap-4">
-          <Slider
-            className="max-w-sm"
-            value={[Math.round(value.participacionMercado * 100)]}
-            min={1}
-            max={100}
-            step={1}
-            onValueChange={([v]) => set({ participacionMercado: v / 100 })}
-          />
-          <span className="w-16 text-sm font-semibold tabular text-primary">{formatPercent(value.participacionMercado)}</span>
-        </div>
-      </section>
-
-      {/* CPC */}
-      <section>
-        <SectionTitle hint="Marca de clase = veces de consumo en el periodo; fi = nº de respuestas. CPC = Σ (marca × frecuencia).">
-          5 · Consumo per cápita (CPC)
-        </SectionTitle>
-        <div className="space-y-2">
-          <div className="grid grid-cols-[1fr_120px_120px_36px] items-center gap-2 px-1 text-xs font-medium text-muted-foreground">
-            <span>Opción</span>
-            <span>Marca de clase</span>
-            <span>fi (respuestas)</span>
-            <span />
+      {/* 4. Consumo per cápita */}
+      <AccordionItem value="cpc">
+        <AccordionTrigger>4 · Consumo per cápita</AccordionTrigger>
+        <AccordionContent>
+          <p className="mb-3 text-xs text-muted-foreground">
+            Marca de clase = veces de consumo en el periodo; fi = nº de respuestas. CPC = Σ (marca × frecuencia).
+          </p>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs font-medium text-muted-foreground">
+                <th className="pb-2 pl-1">Opción</th>
+                <th className="pb-2">Marca de clase</th>
+                <th className="pb-2">fi</th>
+                <th className="w-9" />
+              </tr>
+            </thead>
+            <tbody>
+              {value.consumoPerCapita.map((c) => (
+                <tr key={c.id}>
+                  <td className="py-1 pr-2"><Input value={c.etiqueta} placeholder="Ej. Semanal" onChange={(e) => updCpc(c.id, { etiqueta: e.target.value })} /></td>
+                  <td className="py-1 pr-2"><Input type="number" className="tabular" value={c.marcaClase || ""} onChange={(e) => updCpc(c.id, { marcaClase: Number(e.target.value) || 0 })} /></td>
+                  <td className="py-1 pr-2"><Input type="number" className="tabular" value={c.fi || ""} onKeyDown={enterAdds(addCpc)} onChange={(e) => updCpc(c.id, { fi: Number(e.target.value) || 0 })} /></td>
+                  <td className="py-1">
+                    <Button variant="ghost" size="icon" onClick={() => delCpc(c.id)} disabled={value.consumoPerCapita.length <= 1} aria-label="Eliminar fila">
+                      <Trash2 className="text-muted-foreground" />
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan={2} className="rounded-l-md bg-slate-50 py-2 pl-3 text-xs font-medium text-slate-700">
+                  <span className="inline-flex items-center gap-1"><Lock className="size-3 text-muted-foreground" /> CPC (calculado)</span>
+                </td>
+                <td colSpan={2} className="rounded-r-md bg-slate-50 py-2 text-sm font-semibold tabular text-slate-900">{formatNumber(cpc, 6)}</td>
+              </tr>
+            </tfoot>
+          </table>
+          <div className="mt-2">
+            <Button variant="outline" size="sm" onClick={addCpc}><Plus /> Agregar opción</Button>
           </div>
-          {value.consumoPerCapita.map((c) => (
-            <div key={c.id} className="grid grid-cols-[1fr_120px_120px_36px] items-center gap-2">
-              <Input value={c.etiqueta} placeholder="Ej. Semanal" onChange={(e) => updCpc(c.id, { etiqueta: e.target.value })} />
-              <Input type="number" className="tabular" value={c.marcaClase || ""} onChange={(e) => updCpc(c.id, { marcaClase: Number(e.target.value) || 0 })} />
-              <Input type="number" className="tabular" value={c.fi || ""} onChange={(e) => updCpc(c.id, { fi: Number(e.target.value) || 0 })} />
-              <Button variant="ghost" size="icon" onClick={() => delCpc(c.id)} disabled={value.consumoPerCapita.length <= 1}>
-                <Trash2 className="text-muted-foreground" />
-              </Button>
-            </div>
-          ))}
-          <Button variant="outline" size="sm" onClick={addCpc}>
-            <Plus /> Agregar opción
-          </Button>
-        </div>
-      </section>
-    </div>
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
   );
 }

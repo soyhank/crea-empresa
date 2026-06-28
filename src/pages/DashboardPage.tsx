@@ -135,7 +135,7 @@ export function DashboardPage() {
   }, []);
   React.useEffect(reload, [reload]);
 
-  const abrir = (p: Project) => navigate(`/proyectos/${p.id}`);
+  const abrir = (p: Project) => navigate(`/proyectos/${p.id}/${p.data.lastModulo ?? "mercado"}`);
 
   const crear = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,7 +144,7 @@ export function DashboardPage() {
     try {
       const p = await data.createProject({ nombre: form.nombre.trim(), rubro: form.rubro.trim() || undefined, descripcion: form.descripcion.trim() || undefined });
       toast.success("Proyecto creado");
-      navigate(`/proyectos/${p.id}`);
+      navigate(`/proyectos/${p.id}/mercado`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error");
     } finally {

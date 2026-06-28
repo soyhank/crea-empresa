@@ -20,6 +20,8 @@ export interface AppUser {
  */
 export type ProjectData = Partial<Record<ModuloId, unknown>> & {
   lastModulo?: ModuloId;
+  /** Módulos aguas abajo que quedaron desactualizados por un cambio upstream. */
+  _needsReview?: ModuloId[];
 };
 
 export interface Project {

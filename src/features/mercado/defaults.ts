@@ -6,13 +6,12 @@ import { rowId } from "@/lib/utils";
 export function mercadoVacio(): MercadoInput {
   return {
     distritos: [{ id: rowId("dist"), nombre: "", poblacion: 0 }],
-    filtrosSegmentacion: [
-      { id: rowId("seg"), etiqueta: "Rango de edad objetivo", fraccion: 0 },
-      { id: rowId("seg"), etiqueta: "Nivel socioeconómico", fraccion: 0 },
-    ],
-    factorDisponibilidad: { seleccionadas: 0, total: 0, referencia: "Frecuencia de consumo" },
-    factorEfectividad: { seleccionadas: 0, total: 0, referencia: "Intención de compra" },
+    porcentajeEdad: 0,
+    porcentajeNSE: 0,
     participacionMercado: 0.1,
+    crecimientoPoblacional: 0.02,
+    factorDisponibilidad: 0,
+    factorEfectividad: 0,
     consumoPerCapita: [{ id: rowId("cpc"), etiqueta: "", marcaClase: 0, fi: 0 }],
     periodosPorAnio: 12,
   };

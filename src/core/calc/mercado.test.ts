@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  calcularCPC,
-  calcularMercado,
-  calcularUniverso,
-  factorAFraccion,
-} from "./mercado";
+import { calcularCPC, calcularMercado, calcularUniverso } from "./mercado";
 import { kkoriEsperado, kkoriMercadoInput } from "../fixtures/kkori";
 
 /**
@@ -49,19 +44,12 @@ describe("calcularMercado · caso K-KORI", () => {
 });
 
 describe("helpers de cálculo", () => {
-  it("factorAFraccion conserva precisión (205/384)", () => {
-    expect(factorAFraccion({ seleccionadas: 205, total: 384 })).toBeCloseTo(
-      0.5338541667,
-      9,
-    );
-  });
-
-  it("factorAFraccion evita división por cero", () => {
-    expect(factorAFraccion({ seleccionadas: 5, total: 0 })).toBe(0);
-  });
-
   it("calcularCPC = Σ marca de clase × frecuencia relativa", () => {
     expect(calcularCPC(kkoriMercadoInput.consumoPerCapita)).toBeCloseTo(721 / 384, 9);
+  });
+
+  it("calcularCPC evita división por cero", () => {
+    expect(calcularCPC([])).toBe(0);
   });
 
   it("la cadena es monótona decreciente: U ≥ MP ≥ MD ≥ ME ≥ MO", () => {

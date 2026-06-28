@@ -7,11 +7,9 @@ import { idSchema, fraccionSchema, positivoSchema } from "./common";
  * Reconstruye la cadena del Excel:
  *   Universo → MP → MD → ME → MO → Demanda (× CPC)
  *
- * Corrección sobre el Excel: la segmentación deja de estar cableada (edad+NSE)
- * y pasa a ser una lista de filtros multiplicativos. Los factores de mercado
- * (disponibilidad, efectividad) se modelan como conteos de encuesta
- * (seleccionadas/total) para conservar PLENA PRECISIÓN y reproducir K-KORI
- * exacto, en lugar de porcentajes redondeados que arrastran error.
+ * Los factores se modelan como fracciones 0..1 (la UI los muestra como %).
+ * El caso K-KORI usa fracciones exactas (p. ej. 205/384) para reproducir el
+ * Excel sin arrastre de redondeo.
  */
 
 /** Distrito o zona del universo poblacional (tabla editable). */
@@ -21,29 +19,6 @@ export const distritoSchema = z.object({
   poblacion: z.number().int("Debe ser entero").min(0, "No puede ser negativo"),
 });
 export type Distrito = z.infer<typeof distritoSchema>;
-
-/**
- * Filtro de segmentación: una fracción del universo (edad, NSE, género, etc.).
- * MP = Universo × Π(fracciones). Mínimo recomendado: 1 filtro.
- */
-export const filtroSegmentacionSchema = z.object({
-  id: idSchema,
-  etiqueta: z.string().min(1, "Describe el filtro"),
-  fraccion: fraccionSchema,
-});
-export type FiltroSegmentacion = z.infer<typeof filtroSegmentacionSchema>;
-
-/**
- * Factor proveniente de la encuesta (pregunta filtro/aceptación).
- * fraccion = seleccionadas / total, calculada con precisión completa.
- */
-export const factorEncuestaSchema = z.object({
-  seleccionadas: z.number().int().min(0),
-  total: z.number().int().min(0),
-  /** Referencia informativa: qué pregunta/opciones lo alimentan. */
-  referencia: z.string().optional(),
-});
-export type FactorEncuesta = z.infer<typeof factorEncuestaSchema>;
 
 /** Renglón de la tabla de consumo per cápita (marca de clase × frecuencia). */
 export const cpcItemSchema = z.object({
@@ -58,15 +33,18 @@ export type CpcItem = z.infer<typeof cpcItemSchema>;
 
 export const mercadoInputSchema = z.object({
   distritos: z.array(distritoSchema).min(1, "Agrega al menos un distrito"),
-  filtrosSegmentacion: z
-    .array(filtroSegmentacionSchema)
-    .min(1, "Agrega al menos un criterio de segmentación"),
-  /** Factor de mercado disponible (pregunta filtro de consumo). */
-  factorDisponibilidad: factorEncuestaSchema,
-  /** Factor de mercado efectivo (pregunta de aceptación / intención de compra). */
-  factorEfectividad: factorEncuestaSchema,
-  /** Participación de mercado objetivo (captación inicial, p. ej. 10%). */
+  /** % del universo en el rango de edad objetivo (p. ej. 18–50 años). */
+  porcentajeEdad: fraccionSchema,
+  /** % del nivel socioeconómico objetivo (p. ej. B + C). */
+  porcentajeNSE: fraccionSchema,
+  /** Participación / captación de mercado objetivo (p. ej. 10%). */
   participacionMercado: fraccionSchema,
+  /** Crecimiento poblacional anual (reservado para la proyección de ventas). */
+  crecimientoPoblacional: fraccionSchema.default(0.02),
+  /** Mercado disponible: P3 frecuencia de consumo (p. ej. "Semanal"). */
+  factorDisponibilidad: fraccionSchema,
+  /** Mercado efectivo: P6 intención/frecuencia de compra. */
+  factorEfectividad: fraccionSchema,
   /** Tabla para derivar el consumo per cápita; CPC = Σ marcaClase × (fi/total). */
   consumoPerCapita: z.array(cpcItemSchema).min(1, "Agrega la tabla de frecuencia de compra"),
   /** Periodos por año para la demanda intra-anual (12 = mensual). */
