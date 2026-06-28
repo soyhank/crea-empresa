@@ -78,11 +78,20 @@ function write(key: string, value: unknown) {
 }
 
 function seedDemo() {
-  if (read<DemoUser[] | null>(K.users, null)) return;
-  write(K.users, [
+  const requeridos: DemoUser[] = [
+    { id: uid(), username: "santos", displayName: "Santos", role: "admin", activo: true, password: "pamer2026", createdAt: nowIso() },
     { id: uid(), username: "administrador", displayName: "Administrador", role: "admin", activo: true, password: "admin123", createdAt: nowIso() },
     { id: uid(), username: "alumno-demo", displayName: "Alumno Demo", role: "user", activo: true, password: "alumno123", createdAt: nowIso() },
-  ] satisfies DemoUser[]);
+  ];
+  const existing = read<DemoUser[]>(K.users, []);
+  if (!existing.length) {
+    write(K.users, requeridos);
+    return;
+  }
+  // Alta no destructiva: agrega las cuentas requeridas que falten (por username).
+  const presentes = new Set(existing.map((u) => u.username));
+  const faltantes = requeridos.filter((r) => !presentes.has(r.username));
+  if (faltantes.length) write(K.users, [...existing, ...faltantes]);
 }
 
 class DemoProvider implements DataProvider {

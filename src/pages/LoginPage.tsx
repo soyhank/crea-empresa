@@ -109,6 +109,8 @@ export function LoginPage() {
             <AlertDescription className="mt-1 text-xs">
               Ingresa con el nombre:
               <br />
+              Admin: <b>Santos</b> / <b>pamer2026</b>
+              <br />
               Admin: <b>Administrador</b> / <b>admin123</b>
               <br />
               Empresario: <b>Alumno Demo</b> / <b>alumno123</b>
