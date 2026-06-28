@@ -55,7 +55,7 @@ export function ProyeccionVentasForm({ value, onChange, ctx, onIrACosteo }: Prop
     };
     return (
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[820px] text-xs">
+        <table className="w-full min-w-[680px] text-xs">
           <thead>
             <tr className="text-right text-[10px] font-medium text-muted-foreground">
               <th className="px-1 py-1 text-left">Concepto</th>

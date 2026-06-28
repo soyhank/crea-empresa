@@ -284,7 +284,11 @@ export function ProyectoPage() {
         <aside className="hidden border-r border-border bg-card md:block">{wizard}</aside>
 
         <main className="min-w-0 overflow-y-auto">
-          <div className={"mx-auto px-6 py-6 " + (esEstados ? "max-w-5xl" : "max-w-2xl")}>
+          <div className={"mx-auto px-6 py-6 " + (
+            esEstados ? "max-w-6xl"
+            : ["ventas", "planilla", "flujo_caja", "depreciacion"].includes(activo) ? "max-w-5xl"
+            : "max-w-3xl"
+          )}>
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2">
