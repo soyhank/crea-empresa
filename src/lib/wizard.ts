@@ -1,7 +1,14 @@
 import { MODULOS, MODULO_POR_ID, mercadoOwnSchema, type ModuloId, type EstadoModulo } from "@/core/schemas";
 import { derivarEncuesta } from "@/core/calc";
-import type { EncuestaInput } from "@/core/schemas";
+import type { EncuestaInput, InversionesInput } from "@/core/schemas";
 import type { ProjectData } from "./types";
+
+function totalInversiones(inv?: InversionesInput): number {
+  if (!inv) return 0;
+  const af = inv.activoFijo;
+  const listas = [inv.preOperativos, af?.maquinariaEquipos, af?.equiposUtensilios, af?.equiposOficinaAdmin, af?.mueblesEnseres];
+  return listas.flatMap((x) => x ?? []).reduce((a, i) => a + i.cantidad * i.precio, 0);
+}
 
 /**
  * Reglas de completitud especiales (sobrescriben la validación Zod por defecto):
@@ -11,6 +18,10 @@ import type { ProjectData } from "./types";
 const COMPLETION_OVERRIDES: Partial<Record<ModuloId, (data: ProjectData) => boolean>> = {
   encuesta: (data) => derivarEncuesta(data.encuesta as Partial<EncuestaInput> | undefined).listo,
   mercado: (data) => mercadoOwnSchema.safeParse(data.mercado).success,
+  inversiones: (data) => {
+    const inv = data.inversiones as InversionesInput | undefined;
+    return !!inv && inv.numSocios >= 1 && totalInversiones(inv) > 0;
+  },
 };
 
 export interface ModuloEstado {

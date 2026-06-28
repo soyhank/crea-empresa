@@ -75,8 +75,8 @@ export const MODULOS: readonly ModuloMeta[] = [
     id: "inversiones",
     orden: 5,
     nombre: "Inversiones",
-    descripcion: "Activos, capital de trabajo y gastos preoperativos.",
-    dependencias: [],
+    descripcion: "Pre-operativos, activo fijo y capital de trabajo (de Costeo).",
+    dependencias: ["costeo"],
     schema: inversionesInputSchema,
   },
   {

@@ -5,10 +5,10 @@ import { data } from "@/lib/data";
 import type { Project, ProjectData } from "@/lib/types";
 import {
   MODULOS, MODULO_POR_ID, moduloIdSchema,
-  type CosteoInput, type EncuestaInput, type MercadoOwn, type ModuloId, type PlanillaInput,
+  type CosteoInput, type EncuestaInput, type InversionesInput, type MercadoOwn, type ModuloId, type PlanillaInput,
 } from "@/core/schemas";
 import { calcularCPC, calcularMercado, derivarEncuesta } from "@/core/calc";
-import { construirMercado } from "@/lib/derive";
+import { construirMercado, contextoCapitalTrabajo } from "@/lib/derive";
 import { calcularEstados, isModuloCompleto, modulosAfectados, modulosCompletos, tieneDatos } from "@/lib/wizard";
 import { TopBar } from "@/components/TopBar";
 import { SidebarWizard } from "@/features/proyecto/SidebarWizard";
@@ -24,6 +24,9 @@ import { costeoVacio, costeoEjemploKkori } from "@/features/costeo/defaults";
 import { PlanillaForm } from "@/features/planilla/PlanillaForm";
 import { PlanillaResultados } from "@/features/planilla/PlanillaResultados";
 import { planillaVacia, planillaEjemploKkori } from "@/features/planilla/defaults";
+import { InversionesForm } from "@/features/inversiones/InversionesForm";
+import { InversionesResultados } from "@/features/inversiones/InversionesResultados";
+import { inversionesVacia, inversionesEjemploKkori } from "@/features/inversiones/defaults";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -123,6 +126,7 @@ export function ProyectoPage() {
     else if (mod === "mercado") editarModulo("mercado", mercadoEjemploKkori());
     else if (mod === "costeo") editarModulo("costeo", costeoEjemploKkori());
     else if (mod === "planilla") editarModulo("planilla", planillaEjemploKkori());
+    else if (mod === "inversiones") editarModulo("inversiones", inversionesEjemploKkori());
     toast.success("Ejemplo K-KORI cargado");
   };
 
@@ -157,7 +161,9 @@ export function ProyectoPage() {
   const mercadoValue = (projData.mercado as MercadoOwn | undefined) ?? mercadoVacio();
   const costeoValue = (projData.costeo as CosteoInput | undefined) ?? costeoVacio();
   const planillaValue = (projData.planilla as PlanillaInput | undefined) ?? planillaVacia();
-  const tieneForm = ["encuesta", "mercado", "costeo", "planilla"].includes(activo);
+  const inversionesValue = (projData.inversiones as InversionesInput | undefined) ?? inversionesVacia();
+  const capitalTrabajo = contextoCapitalTrabajo(projData);
+  const tieneForm = ["encuesta", "mercado", "costeo", "planilla", "inversiones"].includes(activo);
 
   const formNode =
     activo === "encuesta" ? (
@@ -176,6 +182,8 @@ export function ProyectoPage() {
       <CosteoForm value={costeoValue} onChange={(n) => editarModulo("costeo", n)} />
     ) : activo === "planilla" ? (
       <PlanillaForm value={planillaValue} onChange={(n) => editarModulo("planilla", n)} />
+    ) : activo === "inversiones" ? (
+      <InversionesForm value={inversionesValue} onChange={(n) => editarModulo("inversiones", n)} capital={capitalTrabajo} onIrACosteo={() => selectModulo("costeo")} />
     ) : null;
 
   const prevMod = MODULOS.find((m) => m.orden === meta.orden - 1);
@@ -200,7 +208,8 @@ export function ProyectoPage() {
     activo === "encuesta" ? <EncuestaResultados value={encuestaValue} /> :
     activo === "mercado" ? <MercadoResultados value={mercadoEfectivo} /> :
     activo === "costeo" ? <CosteoResultados value={costeoValue} demandaMensual={demandaMensual} /> :
-    activo === "planilla" ? <PlanillaResultados value={planillaValue} /> : (
+    activo === "planilla" ? <PlanillaResultados value={planillaValue} /> :
+    activo === "inversiones" ? <InversionesResultados value={inversionesValue} capital={capitalTrabajo} /> : (
       <p className="text-sm text-muted-foreground">Los resultados en vivo de este módulo aparecerán aquí.</p>
     );
 

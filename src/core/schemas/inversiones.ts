@@ -1,29 +1,55 @@
 import { z } from "zod";
-import { idSchema, montoSchema, positivoSchema } from "./common";
+import { idSchema, montoSchema } from "./common";
 
 /**
  * MÓDULO 5 · Inversiones
- * Activos tangibles/intangibles + capital de trabajo + gastos preoperativos.
+ * Pre-operativos + activo fijo (4 grupos) + capital de trabajo (heredado de
+ * Costeo) → inversión total y aporte por socio. Alimenta Depreciación, Flujo
+ * de caja y Situación financiera.
  */
 
-export const categoriaActivoSchema = z.enum(["tangible", "intangible"]);
-export type CategoriaActivo = z.infer<typeof categoriaActivoSchema>;
-
-export const activoSchema = z.object({
+export const itemInversionSchema = z.object({
   id: idSchema,
-  nombre: z.string().min(1, "Nombre del activo"),
-  categoria: categoriaActivoSchema,
-  cantidad: z.number().int().min(1).default(1),
-  costoUnitario: montoSchema,
-  /** Vida útil en años (para depreciación / amortización). */
-  vidaUtilAnios: positivoSchema,
+  rubro: z.string().min(1, "Rubro"),
+  cantidad: z.number().min(0, "No puede ser negativo").default(1),
+  precio: montoSchema,
 });
-export type Activo = z.infer<typeof activoSchema>;
+export type ItemInversion = z.infer<typeof itemInversionSchema>;
 
+export const activoFijoSchema = z.object({
+  maquinariaEquipos: z.array(itemInversionSchema).default([]),
+  equiposUtensilios: z.array(itemInversionSchema).default([]),
+  equiposOficinaAdmin: z.array(itemInversionSchema).default([]),
+  mueblesEnseres: z.array(itemInversionSchema).default([]),
+});
+export type ActivoFijo = z.infer<typeof activoFijoSchema>;
+
+/** Campos PROPIOS (editados aquí). El capital de trabajo se hereda de Costeo. */
 export const inversionesInputSchema = z.object({
-  activos: z.array(activoSchema),
-  /** Capital de trabajo (meses de operación cubiertos). */
-  capitalTrabajo: montoSchema.default(0),
-  gastosPreoperativos: montoSchema.default(0),
+  preOperativos: z.array(itemInversionSchema).default([]),
+  activoFijo: activoFijoSchema,
+  numSocios: z.number().int("Debe ser entero").min(1, "Al menos un socio").default(1),
+  nombresSocios: z.array(z.string()).default([]),
 });
 export type InversionesInput = z.infer<typeof inversionesInputSchema>;
+
+/** Capital de trabajo heredado de Costeo (mensual). */
+export interface CapitalTrabajo {
+  costoVariable: number;
+  costoFijo: number;
+}
+
+export interface InversionesResult {
+  totalPreOperativos: number;
+  totalMaquinaria: number;
+  totalUtensilios: number;
+  totalOficina: number;
+  totalMuebles: number;
+  totalActivoFijo: number;
+  totalCapitalTrabajo: number;
+  inversionTotal: number;
+  aportePorSocio: number;
+  /** Agrupación para Depreciación / Situación financiera. */
+  grupoMaquinariaEquipo: number;
+  grupoMueblesEnseres: number;
+}
