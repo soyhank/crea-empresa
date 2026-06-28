@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Brand } from "@/components/Brand";
-import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Info, Loader2 } from "lucide-react";
 
 export function LoginPage() {
   const { signIn, modo, user } = useAuth();
@@ -63,17 +63,17 @@ export function LoginPage() {
         </form>
 
         {modo === "demo" && (
-          <div className="mt-4 rounded-lg border border-warning/30 bg-warning-soft p-3 text-xs">
-            <div className="mb-1 flex items-center gap-2">
-              <Badge variant="warning">Modo demo</Badge>
-              <span className="text-muted-foreground">Supabase no configurado · datos locales</span>
-            </div>
-            <p className="text-foreground">
+          <Alert variant="info" className="mt-4">
+            <Info />
+            <AlertTitle>Modo demo · datos locales</AlertTitle>
+            <AlertDescription className="mt-1 text-xs">
+              Supabase no configurado. Prueba con:
+              <br />
               Admin: <b>admin@demo.com</b> / <b>admin123</b>
               <br />
               Alumno: <b>alumno@demo.com</b> / <b>alumno123</b>
-            </p>
-          </div>
+            </AlertDescription>
+          </Alert>
         )}
       </div>
     </div>

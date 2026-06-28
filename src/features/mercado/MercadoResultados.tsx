@@ -33,9 +33,9 @@ export function MercadoResultados({ value }: { value: MercadoInput }) {
       </div>
 
       {/* Demanda destacada */}
-      <div className="rounded-xl border border-primary/20 bg-accent/60 p-4">
+      <div className="rounded-lg border border-primary/20 bg-accent p-4">
         <p className="text-xs font-medium text-accent-foreground">Demanda del proyecto</p>
-        <p className="mt-1 text-3xl font-bold tabular text-primary">
+        <p className="mt-1 text-4xl font-bold tabular text-primary">
           {formatNumber(r.demandaAnual)} <span className="text-base font-medium text-muted-foreground">/ año</span>
         </p>
         <p className="text-sm tabular text-muted-foreground">
@@ -44,7 +44,7 @@ export function MercadoResultados({ value }: { value: MercadoInput }) {
       </div>
 
       {/* Embudo */}
-      <div className="rounded-xl border border-border bg-card p-3">
+      <div className="rounded-lg border border-border bg-card p-3">
         <ResponsiveContainer width="100%" height={150}>
           <BarChart data={embudo} margin={{ top: 16, right: 8, left: 8, bottom: 0 }}>
             <XAxis dataKey="nombre" tickLine={false} axisLine={false} fontSize={11} />
@@ -68,7 +68,7 @@ export function MercadoResultados({ value }: { value: MercadoInput }) {
         {r.pasos
           .filter((p) => !["demandaAnual", "demandaPorPeriodo"].includes(p.clave))
           .map((p) => (
-            <div key={p.clave} className="flex items-start justify-between rounded-lg border border-border bg-secondary/40 px-3 py-2">
+            <div key={p.clave} className="flex items-start justify-between rounded-lg border border-border bg-slate-50 px-3 py-2">
               <div className="min-w-0">
                 <div className="flex items-center gap-1 text-xs font-medium text-foreground">
                   <Lock className="size-3 text-muted-foreground" /> {p.etiqueta}

@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { FileSpreadsheet, FolderOpen, Loader2, Plus, Trash2 } from "lucide-react";
 
 export function DashboardPage() {
@@ -53,7 +54,7 @@ export function DashboardPage() {
   return (
     <div className="min-h-screen bg-secondary/30">
       <TopBar />
-      <main className="mx-auto max-w-5xl px-4 py-8">
+      <main className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6">
         <div className="mb-6 flex items-end justify-between">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Mis proyectos</h1>
@@ -86,7 +87,19 @@ export function DashboardPage() {
         </div>
 
         {projects === null ? (
-          <div className="flex justify-center py-20"><Loader2 className="size-6 animate-spin text-primary" /></div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i}>
+                <CardHeader className="pb-3">
+                  <Skeleton className="h-5 w-3/4" />
+                  <Skeleton className="mt-2 h-3 w-full" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-9 w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         ) : projects.length === 0 ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
@@ -99,7 +112,7 @@ export function DashboardPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {projects.map((p) => (
               <Card key={p.id} className="group transition-shadow hover:shadow-md">
                 <CardHeader className="pb-3">

@@ -5,46 +5,48 @@
 
 @layer base {
   :root {
-    --background: 210 40% 99%;
-    --foreground: 222 33% 14%;
+    /* Neutros = slate */
+    --background: 210 40% 98%; /* slate-50 */
+    --foreground: 222 47% 11%; /* slate-900 */
 
-    --card: 0 0% 100%;
-    --card-foreground: 222 33% 14%;
+    --card: 0 0% 100%; /* white */
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 33% 14%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 243 75% 59%;
+    /* Acento de marca = indigo-600 (hover indigo-700) */
+    --primary: 243 75% 59%; /* indigo-600 */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 222 33% 20%;
+    --secondary: 210 40% 96%; /* slate-100 */
+    --secondary-foreground: 215 25% 27%; /* slate-700 */
 
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 210 40% 96%; /* slate-100 */
+    --muted-foreground: 215 16% 47%; /* slate-500 */
 
-    --accent: 243 75% 96%;
-    --accent-foreground: 243 60% 40%;
+    --accent: 226 100% 97%; /* indigo-50 */
+    --accent-foreground: 245 58% 51%; /* indigo-700 */
 
-    --destructive: 0 72% 51%;
+    --destructive: 347 77% 50%; /* rose-600 */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 88%;
-    --ring: 243 75% 59%;
+    --border: 214 32% 91%; /* slate-200 */
+    --input: 213 27% 84%; /* slate-300 */
+    --ring: 239 84% 67%; /* indigo-500 */
 
-    /* Semáforo financiero */
-    --success: 142 71% 38%;
+    /* Semáforo SOLO para resultados */
+    --success: 160 94% 30%; /* emerald-600 */
     --success-foreground: 0 0% 100%;
-    --success-soft: 142 60% 95%;
-    --warning: 38 92% 45%;
+    --success-soft: 152 81% 96%; /* emerald-50 */
+    --warning: 38 92% 50%; /* amber-500 */
     --warning-foreground: 0 0% 100%;
-    --warning-soft: 38 92% 95%;
-    --danger: 0 72% 51%;
+    --warning-soft: 48 100% 96%; /* amber-50 */
+    --danger: 347 77% 50%; /* rose-600 */
     --danger-foreground: 0 0% 100%;
-    --danger-soft: 0 80% 96%;
+    --danger-soft: 356 100% 97%; /* rose-50 */
 
-    --radius: 0.65rem;
+    --radius: 0.5rem; /* rounded-lg = 8px */
   }
 }
 

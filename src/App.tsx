@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { Skeleton } from "@/components/ui/skeleton";
 import { LoginPage } from "@/pages/LoginPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { ProyectoPage } from "@/pages/ProyectoPage";
@@ -8,8 +8,16 @@ import { AdminPage } from "@/pages/AdminPage";
 
 function FullScreenLoader() {
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <Loader2 className="size-6 animate-spin text-primary" />
+    <div className="min-h-screen bg-background">
+      <div className="flex h-14 items-center border-b border-border px-4">
+        <Skeleton className="h-6 w-32" />
+      </div>
+      <div className="mx-auto max-w-screen-2xl space-y-4 px-6 py-8">
+        <Skeleton className="h-8 w-48" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-32 w-full" />)}
+        </div>
+      </div>
     </div>
   );
 }

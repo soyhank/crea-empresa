@@ -16,7 +16,7 @@ interface Props {
 function SectionTitle({ children, hint }: { children: React.ReactNode; hint?: string }) {
   return (
     <div className="mb-3">
-      <h3 className="text-sm font-semibold text-foreground">{children}</h3>
+      <h3 className="text-base font-semibold text-slate-900">{children}</h3>
       {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
     </div>
   );

@@ -9,6 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
@@ -68,12 +71,12 @@ export function AdminPage() {
   };
 
   return (
-    <div className="min-h-screen bg-secondary/30">
+    <div className="min-h-screen bg-background">
       <TopBar />
-      <main className="mx-auto max-w-4xl px-4 py-8">
-        <div className="mb-6 flex items-end justify-between">
+      <main className="mx-auto max-w-screen-xl px-4 py-8 sm:px-6">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+            <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-slate-900">
               <ShieldCheck className="size-6 text-primary" /> Gestión de usuarios
             </h1>
             <p className="text-sm text-muted-foreground">Crea y administra las cuentas. No hay registro público.</p>
@@ -103,15 +106,13 @@ export function AdminPage() {
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="u-role">Rol</Label>
-                    <select
-                      id="u-role"
-                      className="flex h-9 w-full rounded-md border border-input bg-white px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      value={form.role}
-                      onChange={(e) => setForm({ ...form, role: e.target.value })}
-                    >
-                      <option value="user">Alumno</option>
-                      <option value="admin">Administrador</option>
-                    </select>
+                    <Select value={form.role} onValueChange={(role) => setForm({ ...form, role })}>
+                      <SelectTrigger id="u-role"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="user">Alumno</SelectItem>
+                        <SelectItem value="admin">Administrador</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <Button type="submit" className="w-full" disabled={saving}>
@@ -122,55 +123,60 @@ export function AdminPage() {
           </Dialog>
         </div>
 
-        {users === null ? (
-          <div className="flex justify-center py-20"><Loader2 className="size-6 animate-spin text-primary" /></div>
-        ) : (
-          <Card>
-            <CardContent className="p-0">
-              <table className="w-full text-sm">
-                <thead className="border-b border-border text-left text-xs text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3 font-medium">Usuario</th>
-                    <th className="px-4 py-3 font-medium">Rol</th>
-                    <th className="px-4 py-3 font-medium">Estado</th>
-                    <th className="px-4 py-3 text-right font-medium">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((u) => (
-                    <tr key={u.id} className="border-b border-border last:border-0">
-                      <td className="px-4 py-3">
-                        <div className="font-medium">{u.nombre ?? "—"}</div>
-                        <div className="text-xs text-muted-foreground">{u.email}</div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant={u.role === "admin" ? "default" : "muted"}>
-                          {u.role === "admin" ? "Administrador" : "Alumno"}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant={u.activo ? "success" : "danger"}>{u.activo ? "Activo" : "Inactivo"}</Badge>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" title="Resetear contraseña" onClick={() => resetPass(u)}>
-                            <KeyRound />
-                          </Button>
-                          <Button variant="ghost" size="icon" title="Cambiar rol" onClick={() => cambiarRol(u)} disabled={u.id === user?.id}>
-                            <ShieldCheck />
-                          </Button>
-                          <Button variant="ghost" size="icon" title={u.activo ? "Desactivar" : "Activar"} onClick={() => toggleActivo(u)} disabled={u.id === user?.id}>
-                            {u.activo ? <UserX className="text-danger" /> : <UserCheck className="text-success" />}
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </CardContent>
-          </Card>
-        )}
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Usuario</TableHead>
+                  <TableHead>Rol</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {users === null
+                  ? Array.from({ length: 3 }).map((_, i) => (
+                      <TableRow key={i} className="hover:bg-transparent">
+                        <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
+                        <TableCell><div className="flex justify-end"><Skeleton className="h-8 w-24" /></div></TableCell>
+                      </TableRow>
+                    ))
+                  : users.map((u) => (
+                      <TableRow key={u.id}>
+                        <TableCell>
+                          <div className="font-medium text-slate-900">{u.nombre ?? "—"}</div>
+                          <div className="text-xs text-muted-foreground">{u.email}</div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={u.role === "admin" ? "default" : "muted"}>
+                            {u.role === "admin" ? "Administrador" : "Alumno"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={u.activo ? "success" : "danger"}>{u.activo ? "Activo" : "Inactivo"}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="icon" title="Resetear contraseña" onClick={() => resetPass(u)}>
+                              <KeyRound />
+                            </Button>
+                            <Button variant="ghost" size="icon" title="Cambiar rol" onClick={() => cambiarRol(u)} disabled={u.id === user?.id}>
+                              <ShieldCheck />
+                            </Button>
+                            <Button variant="ghost" size="icon" title={u.activo ? "Desactivar" : "Activar"} onClick={() => toggleActivo(u)} disabled={u.id === user?.id}>
+                              {u.activo ? <UserX className="text-danger" /> : <UserCheck className="text-success" />}
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       </main>
     </div>
   );
