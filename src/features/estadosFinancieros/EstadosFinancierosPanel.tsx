@@ -14,8 +14,8 @@ type Clave = "moderado" | "optimista" | "pesimista";
 const ESCENARIOS: Clave[] = ["moderado", "optimista", "pesimista"];
 const NOMBRE: Record<Clave, string> = { moderado: "Moderado", optimista: "Optimista", pesimista: "Pesimista" };
 
-/** Formato contable: negativos entre paréntesis. */
-const contable = (v: number) => (v < 0 ? `(${formatPEN(-v)})` : formatPEN(v));
+/** Negativos con signo "-" (no entre paréntesis). */
+const contable = (v: number) => (v < 0 ? `- ${formatPEN(-v)}` : formatPEN(v));
 
 function EscenarioSelector({ value, onChange }: { value: Clave; onChange: (c: Clave) => void }) {
   return (
