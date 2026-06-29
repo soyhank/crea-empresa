@@ -3,11 +3,12 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { data } from "@/lib/data";
 import type { Project, ProjectData } from "@/lib/types";
-import { MODULO_POR_ID, type CosteoInput, type FlujoCajaInput, type ModuloId } from "@/core/schemas";
-import { calcularCosteo, calcularFlujoCaja, calcularMercado, calcularPuntoEquilibrio } from "@/core/calc";
-import { construirMercado, contextoEstados, contextoFlujo } from "@/lib/derive";
+import { MODULO_POR_ID, type CosteoInput, type FlujoCajaInput, type ProyeccionVentasInput, type ModuloId } from "@/core/schemas";
+import { calcularCosteo, calcularFlujoCaja, calcularMercado, calcularProyeccionVentas, calcularPuntoEquilibrio } from "@/core/calc";
+import { construirMercado, contextoEstados, contextoFlujo, contextoVentas } from "@/lib/derive";
 import { isModuloCompleto } from "@/lib/wizard";
 import { flujoVacio } from "@/features/flujoCaja/defaults";
+import { ventasVacia } from "@/features/ventas/defaults";
 import { EstadosFinancierosPanel } from "@/features/estadosFinancieros/EstadosFinancierosPanel";
 import { formatInteger, formatPEN, formatPercent } from "@/core/money";
 import { Brand } from "@/components/Brand";
@@ -17,7 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
-  Cell, Legend, Line, LineChart, Pie, PieChart, ReferenceLine, ResponsiveContainer,
+  Bar, BarChart, Cell, Legend, Line, LineChart, Pie, PieChart, ReferenceLine, ResponsiveContainer,
   Tooltip as RTooltip, XAxis, YAxis,
 } from "recharts";
 import { CircleAlert, CircleCheck, FileDown, FileSpreadsheet, Lock, Pencil } from "lucide-react";
@@ -90,6 +91,17 @@ export function TableroPage() {
   const flujoR = flujoOk && ctxFlujo.listo ? calcularFlujoCaja(flujoValue, ctxFlujo.inversionInicial, ctxFlujo.anios) : null;
   const mod = flujoR?.escenarios.find((e) => e.clave === "moderado") ?? null;
   const estados = contextoEstados(projData).result;
+
+  const ctxVentas = contextoVentas(projData);
+  const ventasInput = (projData.ventas as ProyeccionVentasInput | undefined) ?? ventasVacia();
+  const ventasR = ctxVentas.listo ? calcularProyeccionVentas(ventasInput, ctxVentas) : null;
+  const flujoBarData = flujoR
+    ? [1, 2, 3].map((anio) => {
+        const row: Record<string, number | string> = { anio: `Año ${anio}` };
+        flujoR.escenarios.forEach((e) => { row[e.clave] = e.anios[anio - 1].flujoEconomico; });
+        return row;
+      })
+    : [];
 
   const baseListo = mercadoOk && costeoOk;
 
@@ -235,8 +247,46 @@ export function TableroPage() {
                   </CardContent>
                 </Card>
 
-                <PendienteCard titulo="Demanda / ventas a 36 meses" modulo="ventas" />
-                <PendienteCard titulo="Flujo de caja por escenario" modulo="flujo_caja" />
+                {ventasR ? (
+                  <Card>
+                    <CardHeader><CardTitle className="text-sm">Demanda / ventas a 36 meses</CardTitle></CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={240}>
+                        <LineChart data={ventasR.meses.map((m) => ({ mes: m.mes, Ingresos: m.ingresos, "Costo total": m.ct }))} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                          <XAxis dataKey="mes" fontSize={10} tickLine={false} interval={5} />
+                          <YAxis fontSize={10} tickLine={false} width={48} tickFormatter={(v: number) => formatInteger(v)} />
+                          <RTooltip formatter={(v: number) => formatPEN(v)} labelFormatter={(l) => `Mes ${l}`} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                          <Legend wrapperStyle={{ fontSize: 11 }} />
+                          <Line type="monotone" dataKey="Ingresos" stroke="#16a34a" dot={false} strokeWidth={2} />
+                          <Line type="monotone" dataKey="Costo total" stroke="#e11d48" dot={false} strokeWidth={2} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <PendienteCard titulo="Demanda / ventas a 36 meses" modulo="ventas" />
+                )}
+
+                {flujoR ? (
+                  <Card>
+                    <CardHeader><CardTitle className="text-sm">Flujo de caja por escenario</CardTitle></CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={240}>
+                        <BarChart data={flujoBarData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                          <XAxis dataKey="anio" fontSize={11} tickLine={false} />
+                          <YAxis fontSize={10} tickLine={false} width={48} tickFormatter={(v: number) => formatInteger(v)} />
+                          <RTooltip formatter={(v: number) => formatPEN(v)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                          <Legend wrapperStyle={{ fontSize: 11 }} />
+                          <Bar dataKey="optimista" name="Optimista" fill="#16a34a" radius={[3, 3, 0, 0]} />
+                          <Bar dataKey="moderado" name="Moderado" fill="#6366f1" radius={[3, 3, 0, 0]} />
+                          <Bar dataKey="pesimista" name="Pesimista" fill="#f59e0b" radius={[3, 3, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <PendienteCard titulo="Flujo de caja por escenario" modulo="flujo_caja" />
+                )}
               </div>
             </section>
 
