@@ -107,7 +107,7 @@ export const MODULOS: readonly ModuloMeta[] = [
     id: "flujo_caja",
     orden: 9,
     nombre: "Flujo de caja",
-    descripcion: "Tres escenarios y COK → VANE, TIRE y Payback.",
+    descripcion: "Tres escenarios y COK → VAN, TIR y Payback.",
     dependencias: ["ventas", "inversiones"],
     schema: flujoCajaInputSchema,
   },

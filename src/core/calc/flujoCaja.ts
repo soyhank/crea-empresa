@@ -6,7 +6,7 @@ import type {
 /**
  * Motor del flujo de caja económico por escenario (funciones puras).
  * La inflación del escenario incrementa costos fijos, variables e IGV; los
- * ingresos no se ven afectados. Reproduce K-KORI (VANE 95,023 / TIRE 141.75%
+ * ingresos no se ven afectados. Reproduce K-KORI (VAN 95,023 / TIR 141.75%
  * optimista, etc.).
  */
 export function calcularFlujoEscenario(

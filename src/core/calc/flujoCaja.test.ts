@@ -35,10 +35,10 @@ describe("calcularFlujoCaja · caso K-KORI", () => {
     it(`${k}: flujo económico año 1 = ${e.flujoEco1[k]}`, () => {
       expect(esc(k).anios[0].flujoEconomico).toBeCloseTo(e.flujoEco1[k], 3);
     });
-    it(`${k}: VANE ≈ ${e.vane[k]}`, () => {
+    it(`${k}: VAN ≈ ${e.vane[k]}`, () => {
       expect(esc(k).vane).toBeCloseTo(e.vane[k], 1);
     });
-    it(`${k}: TIRE ≈ ${e.tire[k]}`, () => {
+    it(`${k}: TIR ≈ ${e.tire[k]}`, () => {
       expect(esc(k).tire).toBeCloseTo(e.tire[k], 4);
     });
   });

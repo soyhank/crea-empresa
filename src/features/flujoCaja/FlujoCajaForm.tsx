@@ -104,11 +104,11 @@ export function FlujoCajaForm({ value, onChange, ctx, onIr }: Props) {
                   </table>
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2">
-                  <div className="rounded-lg border border-primary/20 bg-accent p-2 text-center"><p className="text-[10px] text-accent-foreground">VANE</p><p className="text-base font-bold tabular text-primary">{formatPEN(esc.vane)}</p></div>
-                  <div className="rounded-lg border border-primary/20 bg-accent p-2 text-center"><p className="text-[10px] text-accent-foreground">TIRE</p><p className="text-base font-bold tabular text-primary">{formatPercent(esc.tire)}</p></div>
+                  <div className="rounded-lg border border-primary/20 bg-accent p-2 text-center"><p className="text-[10px] text-accent-foreground">VAN</p><p className="text-base font-bold tabular text-primary">{formatPEN(esc.vane)}</p></div>
+                  <div className="rounded-lg border border-primary/20 bg-accent p-2 text-center"><p className="text-[10px] text-accent-foreground">TIR</p><p className="text-base font-bold tabular text-primary">{formatPercent(esc.tire)}</p></div>
                   <div className="rounded-lg border border-primary/20 bg-accent p-2 text-center"><p className="text-[10px] text-accent-foreground">Payback</p><p className="text-base font-bold tabular text-primary">{esc.payback.toFixed(2)} años</p></div>
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">COK del escenario: {formatPercent(esc.cok)} · TIRE {esc.tire > esc.cok ? "supera" : "no supera"} el COK.</p>
+                <p className="mt-2 text-xs text-muted-foreground">COK del escenario: {formatPercent(esc.cok)} · TIR {esc.tire > esc.cok ? "supera" : "no supera"} el COK.</p>
               </TabsContent>
             ))}
           </Tabs>

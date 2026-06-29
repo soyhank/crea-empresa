@@ -201,8 +201,8 @@ export function TableroPage() {
             <section>
               <h2 className="mb-3 text-lg font-semibold text-slate-900">Indicadores clave</h2>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-                <Scorecard label="VAN (VANE)" valor={mod ? formatPEN(mod.vane) : "—"} contexto={mod ? "escenario moderado" : "Completa Flujo de caja"} tono={mod ? (mod.vane > 0 ? "ok" : "bad") : "neutral"} pendiente={!mod} />
-                <Scorecard label="TIR (TIRE)" valor={mod ? formatPercent(mod.tire) : "—"} contexto={mod ? `COK ${formatPercent(mod.cok)}` : "Completa Flujo de caja"} tono={mod ? (mod.tire > mod.cok ? "ok" : "bad") : "neutral"} pendiente={!mod} />
+                <Scorecard label="VAN (VAN)" valor={mod ? formatPEN(mod.vane) : "—"} contexto={mod ? "escenario moderado" : "Completa Flujo de caja"} tono={mod ? (mod.vane > 0 ? "ok" : "bad") : "neutral"} pendiente={!mod} />
+                <Scorecard label="TIR (TIR)" valor={mod ? formatPercent(mod.tire) : "—"} contexto={mod ? `COK ${formatPercent(mod.cok)}` : "Completa Flujo de caja"} tono={mod ? (mod.tire > mod.cok ? "ok" : "bad") : "neutral"} pendiente={!mod} />
                 <Scorecard label="Payback" valor={mod ? `${mod.payback.toFixed(2)} años` : "—"} contexto={mod ? "recupero de inversión" : "Completa Flujo de caja"} pendiente={!mod} />
                 <Scorecard label="Punto de equilibrio" valor={peR ? `${formatInteger(peR.unidades)}` : "—"} contexto={peR ? <>unid · {formatPEN(peR.soles)}</> : undefined} />
                 <Scorecard label="Inversión total" valor={ctxFlujo.inversionInicial > 0 ? formatPEN(ctxFlujo.inversionInicial) : "—"} contexto={ctxFlujo.inversionInicial > 0 ? "aporte de socios" : "Completa Inversiones"} pendiente={ctxFlujo.inversionInicial <= 0} />
@@ -301,8 +301,8 @@ export function TableroPage() {
                       <tbody>
                         {([
                           ["COK", (e: typeof flujoR.escenarios[number]) => formatPercent(e.cok)],
-                          ["VANE", (e: typeof flujoR.escenarios[number]) => formatPEN(e.vane)],
-                          ["TIRE", (e: typeof flujoR.escenarios[number]) => formatPercent(e.tire)],
+                          ["VAN", (e: typeof flujoR.escenarios[number]) => formatPEN(e.vane)],
+                          ["TIR", (e: typeof flujoR.escenarios[number]) => formatPercent(e.tire)],
                           ["Payback", (e: typeof flujoR.escenarios[number]) => `${e.payback.toFixed(2)} años`],
                         ] as const).map(([label, fn]) => (
                           <tr key={label} className="border-b border-border last:border-0">

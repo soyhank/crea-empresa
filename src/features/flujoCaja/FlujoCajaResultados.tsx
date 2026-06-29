@@ -38,11 +38,11 @@ export function FlujoCajaResultados({ value, ctx }: {
       <div className="flex items-center gap-2 text-sm font-semibold text-slate-900"><Zap className="size-4 text-primary" /> Resultados de este módulo</div>
 
       <div className="rounded-lg border border-primary/20 bg-accent p-3 text-center">
-        <p className="text-[11px] font-medium text-accent-foreground">VANE (moderado)</p>
+        <p className="text-[11px] font-medium text-accent-foreground">VAN (moderado)</p>
         <p className="text-3xl font-bold tabular text-primary">{formatPEN(mod.vane)}</p>
         <div className="mt-2 flex justify-center gap-2">
-          <Badge variant={mod.vane > 0 ? "success" : "danger"}>VANE {mod.vane > 0 ? "> 0" : "< 0"}</Badge>
-          <Badge variant={mod.tire > mod.cok ? "success" : "danger"}>TIRE {formatPercent(mod.tire)} {mod.tire > mod.cok ? ">" : "<"} COK</Badge>
+          <Badge variant={mod.vane > 0 ? "success" : "danger"}>VAN {mod.vane > 0 ? "> 0" : "< 0"}</Badge>
+          <Badge variant={mod.tire > mod.cok ? "success" : "danger"}>TIR {formatPercent(mod.tire)} {mod.tire > mod.cok ? ">" : "<"} COK</Badge>
         </div>
         <p className="mt-1 text-[11px] text-muted-foreground">Payback {mod.payback.toFixed(2)} años</p>
       </div>
@@ -65,7 +65,7 @@ export function FlujoCajaResultados({ value, ctx }: {
         {r.escenarios.map((e) => (
           <div key={e.clave} className="flex items-center justify-between rounded-md border border-border bg-slate-50 px-3 py-1.5 text-xs">
             <span className="capitalize text-slate-700">{e.clave}</span>
-            <span className="tabular text-slate-900">VANE {formatInteger(e.vane)} · TIRE {formatPercent(e.tire)}</span>
+            <span className="tabular text-slate-900">VAN {formatInteger(e.vane)} · TIR {formatPercent(e.tire)}</span>
           </div>
         ))}
       </div>

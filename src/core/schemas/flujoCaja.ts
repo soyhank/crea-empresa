@@ -2,7 +2,7 @@ import { z } from "zod";
 import { fraccionSchema } from "./common";
 
 /**
- * MÓDULO 9 · Flujo de caja (3 escenarios + COK → VANE / TIRE / Payback)
+ * MÓDULO 9 · Flujo de caja (3 escenarios + COK → VAN / TIR / Payback)
  * Inputs por escenario: inflación, tasa de mercado, riesgo del inversionista.
  * Heredados: inversión inicial (Inversiones) y totales anuales (Ventas).
  */
