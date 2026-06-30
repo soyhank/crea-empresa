@@ -17,12 +17,12 @@ export function EncuestaResultados({ value }: { value: EncuestaInput }) {
       <p className="text-xs text-muted-foreground">Lo que esta encuesta entrega a Mercado:</p>
       <div className="space-y-1.5">
         <div className="rounded-md border border-border bg-slate-50 px-3 py-2">
-          <p className="text-[11px] text-muted-foreground">P3 · % consumo semanal → Mercado disponible</p>
+          <p className="text-[11px] text-muted-foreground">P3 · % que consume → Mercado disponible</p>
           <p className="text-lg font-bold tabular text-slate-900">{formatPercent(d.factorDisponibilidad)}</p>
         </div>
         <div className="rounded-md border border-border bg-slate-50 px-3 py-2">
           <p className="text-[11px] text-muted-foreground">P6 · Consumo per cápita → Mercado</p>
-          <p className="text-lg font-bold tabular text-slate-900">{formatNumber(cpc, 2)} <span className="text-xs font-medium text-muted-foreground">cajas</span></p>
+          <p className="text-lg font-bold tabular text-slate-900">{formatNumber(cpc, 2)} <span className="text-xs font-medium text-muted-foreground">unidades</span></p>
         </div>
       </div>
 
