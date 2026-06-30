@@ -1,4 +1,5 @@
 import { sum } from "../money";
+import { factorConversion } from "../units";
 import type { CosteoInput, CosteoResult, Insumo, ProcesoMOD } from "../schemas/costeo";
 
 /**
@@ -13,9 +14,14 @@ export interface CosteoContext {
   demandaMensual: number;
 }
 
-/** Total de un insumo = precio × requerimiento. */
+/**
+ * Total de un insumo = precio × requerimiento, convirtiendo el requerimiento
+ * de su unidad (g, ml…) a la unidad de compra (kg, L…) del precio.
+ * Sin `unidadRequerimiento`, el factor es 1 (requerimiento ya en unidad de compra).
+ */
 export function totalInsumo(i: Insumo): number {
-  return i.precioUnitario * i.requerimiento;
+  const factor = factorConversion(i.unidadRequerimiento, i.medida);
+  return i.precioUnitario * i.requerimiento * factor;
 }
 
 /** Materia prima unitaria = Σ totales de insumos. */

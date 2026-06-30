@@ -12,9 +12,16 @@ import { idSchema, montoSchema, fraccionSchema, positivoSchema } from "./common"
 export const insumoSchema = z.object({
   id: idSchema,
   nombre: z.string().min(1, "Nombre del insumo"),
+  /** Unidad de COMPRA: el precio se refiere a esta unidad (kg, L, unidad…). */
   medida: z.string().min(1, "Unidad (kg, unid)"),
+  /**
+   * Unidad en la que el alumno ingresa el requerimiento (g, ml, unidad…). Si se
+   * omite, se asume que el requerimiento ya está en la unidad de compra (modo
+   * legado). El cálculo convierte requerimiento → unidad de compra.
+   */
+  unidadRequerimiento: z.string().optional(),
   precioUnitario: montoSchema,
-  /** Requerimiento por unidad de producto. */
+  /** Requerimiento por unidad de producto, en `unidadRequerimiento`. */
   requerimiento: montoSchema,
 });
 export type Insumo = z.infer<typeof insumoSchema>;

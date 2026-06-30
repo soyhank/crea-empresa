@@ -4,7 +4,7 @@ import { rowId } from "@/lib/utils";
 
 export function costeoVacio(): CosteoInput {
   return {
-    materiaPrima: [{ id: rowId("mp"), nombre: "", medida: "", precioUnitario: 0, requerimiento: 0 }],
+    materiaPrima: [{ id: rowId("mp"), nombre: "", medida: "kg", unidadRequerimiento: "g", precioUnitario: 0, requerimiento: 0 }],
     manoObra: [{ id: rowId("mod"), proceso: "", sueldo: 0, minutos: 0, eficiencia: 0.75 }],
     costosFijos: [{ id: rowId("cf"), concepto: "", monto: 0 }],
     minutosDisponiblesMes: 11589.75,
